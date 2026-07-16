@@ -1,0 +1,202 @@
+name: FitnessPaw QA Enterprise CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  selenium-tests:
+    name: Selenium - Website Tests (300)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Run Website Tests
+        run: java tests/RunTests.java selenium
+
+      - name: Upload Selenium Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-report
+          path: tests/reports/selenium-report.json
+
+  appium-tests:
+    name: Appium - Android Tests (300)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Run Android Appium Tests
+        run: java tests/RunTests.java appium
+
+      - name: Upload Appium Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: appium-report
+          path: tests/reports/appium-report.json
+
+  api-tests:
+    name: Unit Tests - API (300)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Run API Unit Tests
+        run: java tests/RunTests.java api
+
+      - name: Upload API Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-report
+          path: tests/reports/api-report.json
+
+  validation-tests:
+    name: Validation Tests (300)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Run Input Validation Tests
+        run: java tests/RunTests.java validation
+
+      - name: Upload Validation Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report
+          path: tests/reports/validation-report.json
+
+  deployment-status:
+    name: Deployment Status (300)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Run Deployment Checks
+        run: java tests/RunTests.java deployment
+
+      - name: Upload Deployment Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-report
+          path: tests/reports/deployment-report.json
+
+  load-tests:
+    name: Load Testing - Performance (300)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Run Performance Load Tests
+        run: java tests/RunTests.java load
+
+      - name: Upload Load Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-report
+          path: tests/reports/load-report.json
+
+  compile-report:
+    name: Compile Master Report & Deploy
+    needs: [selenium-tests, appium-tests, api-tests, validation-tests, deployment-status, load-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Create Reports Workspace
+        run: mkdir -p tests/reports
+
+      - name: Download Selenium Report
+        uses: actions/download-artifact@v4
+        with:
+          name: selenium-report
+          path: tests/reports
+
+      - name: Download Appium Report
+        uses: actions/download-artifact@v4
+        with:
+          name: appium-report
+          path: tests/reports
+
+      - name: Download Unit Test Report
+        uses: actions/download-artifact@v4
+        with:
+          name: api-report
+          path: tests/reports
+
+      - name: Download Validation Report
+        uses: actions/download-artifact@v4
+        with:
+          name: validation-report
+          path: tests/reports
+
+      - name: Download Deployment Report
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-report
+          path: tests/reports
+
+      - name: Download Load Report
+        uses: actions/download-artifact@v4
+        with:
+          name: load-report
+          path: tests/reports
+
+      - name: Compile Unified HTML Dashboard
+        run: java tests/RunTests.java compile
+
+      - name: Upload Master Dashboard Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-qa-dashboard
+          path: tests/reports/dashboard.html

@@ -1,0 +1,19 @@
+# Temporary reports
+tests/reports/*.json
+tests/reports/dashboard.html
+
+# Local IDE and SDK properties
+local.properties
+.idea/
+.gradle/
+.kotlin/
+*.log
+
+# Build outputs
+**/build/
+**/bin/
+**/obj/
+**/out/
+
+# Node modules (just in case)
+node_modules/
