@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="blue" data-mode="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardioProgress - Cardiac Fibrosis AI Predictor</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Style Sheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- Sound Effects Element -->
+    <audio id="click-sound" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav" preload="auto"></audio>
+    <audio id="success-sound" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-84.wav" preload="auto"></audio>
+
+    <div id="app-container">
+        <!-- ==================== SPLASH SCREEN ==================== -->
+        <section id="screen-splash" class="screen active">
+            <div class="splash-content">
+                <div class="logo-wrapper">
+                    <div class="heart-pulse-icon">
+                        <i class="fa-solid fa-heart-pulse"></i>
+                    </div>
+                </div>
+                <h1 class="brand-title">CardioProgress</h1>
+                <p class="brand-subtitle">AI-Powered Cardiac Fibrosis Detection</p>
+                <div class="spinner"></div>
+            </div>
+        </section>
+
+        <!-- ==================== ONBOARDING SCREENS ==================== -->
+        <section id="screen-on1" class="screen">
+            <div class="onboarding-card">
+                <div class="onboarding-visual">
+                    <i class="fa-solid fa-shield-heart icon-pulse"></i>
+                </div>
+                <h2>Predict Fibrosis Early</h2>
+                <p>Detect early signs of cardiac tissue scarring and fibrosis progression using AI assessment, allowing prompt clinical intervention.</p>
+                <div class="onboarding-dots">
+                    <span class="dot active"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+                <div class="onboarding-buttons">
+                    <button class="btn btn-text btn-skip">Skip</button>
+                    <button class="btn btn-primary btn-next" data-next="on2">Next <i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <section id="screen-on2" class="screen">
+            <div class="onboarding-card">
+                <div class="onboarding-visual">
+                    <i class="fa-solid fa-flask-vial icon-bounce"></i>
+                </div>
+                <h2>Biomarker Analysis</h2>
+                <p>Upload lab results and monitor cardiac biomarkers. Our AI parses and scores key indicators like Troponin-I, BNP, and NT-proBNP.</p>
+                <div class="onboarding-dots">
+                    <span class="dot"></span>
+                    <span class="dot active"></span>
+                    <span class="dot"></span>
+                </div>
+                <div class="onboarding-buttons">
+                    <button class="btn btn-text btn-skip">Skip</button>
+                    <button class="btn btn-primary btn-next" data-next="on3">Next <i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <section id="screen-on3" class="screen">
+            <div class="onboarding-card">
+                <div class="onboarding-visual">
+                    <i class="fa-solid fa-user-doctor icon-wobble"></i>
+                </div>
+                <h2>Personalized Insights</h2>
+                <p>Receive tailor-made recommendations, diet adjustments, and expert guidelines based on your risk levels and cardiac metrics.</p>
+                <div class="onboarding-dots">
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot active"></span>
+                </div>
+                <div class="onboarding-buttons">
+                    <button class="btn btn-text btn-skip">Skip</button>
+                    <button class="btn btn-primary btn-get-started">Get Started <i class="fa-solid fa-check"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== AUTH SCREENS ==================== -->
+        <section id="screen-login" class="screen">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <i class="fa-solid fa-heart-circle-check auth-logo"></i>
+                    <h2>Welcome Back</h2>
+                    <p>Log in to access your cardiac assessments</p>
+                </div>
+                <form id="form-login" class="auth-form">
+                    <div class="input-group">
+                        <label for="login-email">Email Address</label>
+                        <div class="input-wrapper">
+                            <i class="fa-regular fa-envelope"></i>
+                            <input type="email" id="login-email" required placeholder="name@example.com">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <div class="label-row">
+                            <label for="login-password">Password</label>
+                            <a href="#" class="forgot-link" id="go-forgot">Forgot?</a>
+                        </div>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" id="login-password" required placeholder="••••••••">
+                            <i class="fa-regular fa-eye-slash toggle-password" data-target="login-password"></i>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Log In</button>
+                </form>
+                <div class="auth-footer">
+                    <p>Don't have an account? <a href="#" id="go-signup">Sign Up</a></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="screen-signup" class="screen">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <i class="fa-solid fa-user-plus auth-logo"></i>
+                    <h2>Create Account</h2>
+                    <p>Start tracking your cardiac health progression</p>
+                </div>
+                <form id="form-signup" class="auth-form">
+                    <div class="input-group">
+                        <label for="signup-name">Full Name</label>
+                        <div class="input-wrapper">
+                            <i class="fa-regular fa-user"></i>
+                            <input type="text" id="signup-name" required placeholder="John Doe">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="signup-email">Email Address</label>
+                        <div class="input-wrapper">
+                            <i class="fa-regular fa-envelope"></i>
+                            <input type="email" id="signup-email" required placeholder="john@example.com">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="signup-password">Password</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" id="signup-password" required placeholder="At least 6 characters">
+                            <i class="fa-regular fa-eye-slash toggle-password" data-target="signup-password"></i>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Register</button>
+                </form>
+                <div class="auth-footer">
+                    <p>Already have an account? <a href="#" id="go-login">Log In</a></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="screen-verify" class="screen">
+            <div class="auth-card text-center">
+                <div class="auth-header">
+                    <i class="fa-solid fa-envelope-open-text auth-logo icon-bounce"></i>
+                    <h2>Verify Your Email</h2>
+                    <p>We've sent a verification code to your email address.</p>
+                </div>
+                <div class="verification-box">
+                    <input type="text" maxlength="1" class="code-input" autofocus>
+                    <input type="text" maxlength="1" class="code-input">
+                    <input type="text" maxlength="1" class="code-input">
+                    <input type="text" maxlength="1" class="code-input">
+                </div>
+                <button id="btn-verify-submit" class="btn btn-primary btn-block">Verify Code</button>
+                <p class="resend-text">Didn't receive code? <a href="#" id="btn-resend-code">Resend</a></p>
+                <button class="btn btn-text btn-block mt-10" id="verify-back"><i class="fa-solid fa-arrow-left"></i> Back to Signup</button>
+            </div>
+        </section>
+
+        <section id="screen-forgot-password" class="screen">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <i class="fa-solid fa-key auth-logo"></i>
+                    <h2>Forgot Password</h2>
+                    <p>Enter your email to receive a password reset link.</p>
+                </div>
+                <form id="form-forgot" class="auth-form">
+                    <div class="input-group">
+                        <label for="forgot-email">Email Address</label>
+                        <div class="input-wrapper">
+                            <i class="fa-regular fa-envelope"></i>
+                            <input type="email" id="forgot-email" required placeholder="john@example.com">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Send Reset Link</button>
+                    <button type="button" class="btn btn-text btn-block mt-10" id="forgot-back"><i class="fa-solid fa-arrow-left"></i> Back to Login</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="screen-reset-password" class="screen">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <i class="fa-solid fa-lock-open auth-logo"></i>
+                    <h2>Reset Password</h2>
+                    <p>Choose a new secure password for your account.</p>
+                </div>
+                <form id="form-reset" class="auth-form">
+                    <div class="input-group">
+                        <label for="new-password">New Password</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" id="new-password" required placeholder="New password">
+                            <i class="fa-regular fa-eye-slash toggle-password" data-target="new-password"></i>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="confirm-password">Confirm Password</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" id="confirm-password" required placeholder="Confirm new password">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Update Password</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="screen-reset-success" class="screen">
+            <div class="auth-card text-center">
+                <i class="fa-regular fa-circle-check success-icon icon-bounce"></i>
+                <h2>Password Reset</h2>
+                <p>Your password has been successfully updated. You can now log in with your new credentials.</p>
+                <button class="btn btn-primary btn-block mt-20" id="btn-reset-continue">Go to Login</button>
+            </div>
+        </section>
+
+        <!-- ==================== PATIENT WIZARD SCREEN ==================== -->
+        <section id="screen-continue-patient" class="screen">
+            <div class="auth-card text-center">
+                <i class="fa-solid fa-clipboard-user setup-icon"></i>
+                <h2>Patient Profile Setup</h2>
+                <p>Welcome! To get accurate AI risk reports, please complete your health profile details.</p>
+                <button class="btn btn-primary btn-block mt-20" id="btn-patient-setup-start">Start Setup <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+        </section>
+
+        <!-- Dynamic Multi-step Wizard -->
+        <section id="screen-patient-wizard" class="screen">
+            <div class="wizard-container">
+                <div class="wizard-header">
+                    <div class="wizard-progress-bar">
+                        <div class="progress-fill" id="wizard-progress"></div>
+                    </div>
+                    <div class="wizard-steps-indicator">
+                        <span class="step-indicator active" id="step-ind-1">1</span>
+                        <span class="step-indicator" id="step-ind-2">2</span>
+                        <span class="step-indicator" id="step-ind-3">3</span>
+                        <span class="step-indicator" id="step-ind-4">4</span>
+                    </div>
+                    <h3 id="wizard-title">Demographics</h3>
+                </div>
+
+                <div class="wizard-body">
+                    <!-- Step 1: Personal Details -->
+                    <div class="wizard-step active" id="wizard-step-1">
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label for="pat-dob">Date of Birth</label>
+                                <input type="date" id="pat-dob" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="pat-gender">Gender</label>
+                                <select id="pat-gender" required>
+                                    <option value="">Select Gender</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="pat-blood">Blood Group</label>
+                                <select id="pat-blood">
+                                    <option value="A+">A+</option>
+                                    <option value="A-">A-</option>
+                                    <option value="B+">B+</option>
+                                    <option value="B-">B-</option>
+                                    <option value="AB+">AB+</option>
+                                    <option value="AB-">AB-</option>
+                                    <option value="O+">O+</option>
+                                    <option value="O-">O-</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="pat-height">Height (cm)</label>
+                                <input type="number" id="pat-height" placeholder="e.g. 175" min="50" max="250">
+                            </div>
+                            <div class="input-group">
+                                <label for="pat-weight">Weight (kg)</label>
+                                <input type="number" id="pat-weight" placeholder="e.g. 70" min="20" max="300">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Medical History -->
+                    <div class="wizard-step" id="wizard-step-2">
+                        <p class="step-desc">Select any pre-existing cardiac or systemic conditions:</p>
+                        <div class="checkbox-grid">
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="medical_history" value="Hypertension">
+                                <span class="chk-box"></span>
+                                <span class="chk-label"><i class="fa-solid fa-droplet text-red"></i> Hypertension</span>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="medical_history" value="Diabetes">
+                                <span class="chk-box"></span>
+                                <span class="chk-label"><i class="fa-solid fa-crutch text-blue"></i> Diabetes</span>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="medical_history" value="Coronary Artery Disease">
+                                <span class="chk-box"></span>
+                                <span class="chk-label"><i class="fa-solid fa-heart-circle-exclamation text-orange"></i> CAD</span>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="medical_history" value="Arsenic Exposure History">
+                                <span class="chk-box"></span>
+                                <span class="chk-label"><i class="fa-solid fa-skull-crossbones text-dark"></i> Arsenic Exposure</span>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="medical_history" value="Chronic Kidney Disease">
+                                <span class="chk-box"></span>
+                                <span class="chk-label"><i class="fa-solid fa-vial"></i> Kidney Disease</span>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="medical_history" value="Heart Valve Disease">
+                                <span class="chk-box"></span>
+                                <span class="chk-label"><i class="fa-solid fa-circle-nodes"></i> Valve Disease</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Lifestyle Details -->
+                    <div class="wizard-step" id="wizard-step-3">
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label for="life-exercise">Weekly Exercise (hours)</label>
+                                <select id="life-exercise">
+                                    <option value="None">Sedentary (0 hrs)</option>
+                                    <option value="1-2 hours">Light (1-2 hrs)</option>
+                                    <option value="3-5 hours" selected>Moderate (3-5 hrs)</option>
+                                    <option value="5+ hours">Active (5+ hrs)</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="life-diet">Sodium Intake Level</label>
+                                <select id="life-diet">
+                                    <option value="Low (<1500mg/day)">Low (&lt; 1500mg)</option>
+                                    <option value="Moderate (1500-2300mg/day)" selected>Moderate (1500-2300mg)</option>
+                                    <option value="High (>2300mg/day)">High (&gt; 2300mg)</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="life-smoke">Smoking Habit</label>
+                                <select id="life-smoke">
+                                    <option value="Never" selected>Never Smoked</option>
+                                    <option value="Former Smoker">Former Smoker</option>
+                                    <option value="Active Smoker">Active Smoker</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="life-alcohol">Alcohol Consumption</label>
+                                <select id="life-alcohol">
+                                    <option value="Never" selected>Never</option>
+                                    <option value="Occasional">Occasional</option>
+                                    <option value="Regular">Regular</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Family History -->
+                    <div class="wizard-step" id="wizard-step-4">
+                        <p class="step-desc">Is there a family history of the following?</p>
+                        <div class="checkbox-grid">
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="family_history" value="Premature Heart Attacks">
+                                <span class="chk-box"></span>
+                                <span class="chk-label"><i class="fa-solid fa-heart-crack text-red"></i> Early Heart Attack</span>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="family_history" value="Congestive Heart Failure">
+                                <span class="chk-box"></span>
+                                <span class="chk-label"><i class="fa-solid fa-triangle-exclamation"></i> Heart Failure</span>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="family_history" value="Cardiomyopathy">
+                                <span class="chk-box"></span>
+                                <span class="chk-label"><i class="fa-solid fa-dna text-blue"></i> Cardiomyopathy</span>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" name="family_history" value="Hypertension in Parents">
+                                <span class="chk-box"></span>
+                                <span class="chk-label"><i class="fa-solid fa-droplet"></i> Parent Hypertension</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wizard-footer">
+                    <button class="btn btn-secondary" id="wizard-prev" disabled><i class="fa-solid fa-arrow-left"></i> Back</button>
+                    <button class="btn btn-primary" id="wizard-next-btn">Next <i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== MAIN DASHBOARD SYSTEM ==================== -->
+        <section id="screen-main" class="screen">
+            <div class="main-layout">
+                <!-- Sidebar (Desktop View) -->
+                <aside class="sidebar">
+                    <div class="sidebar-header">
+                        <i class="fa-solid fa-heart-pulse logo-icon"></i>
+                        <span class="logo-text">CardioProgress</span>
+                    </div>
+                    <nav class="sidebar-nav">
+                        <a href="#" class="nav-item active" data-tab="tab-dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+                        <a href="#" class="nav-item" data-tab="tab-reports"><i class="fa-solid fa-file-medical"></i> Reports & Upload</a>
+                        <a href="#" class="nav-item" data-tab="tab-health"><i class="fa-solid fa-notes-medical"></i> Health Profile</a>
+                        <a href="#" class="nav-item" data-tab="tab-profile"><i class="fa-solid fa-user-pen"></i> Edit Profile</a>
+                        <a href="#" class="nav-item" data-tab="tab-settings"><i class="fa-solid fa-gears"></i> Settings</a>
+                    </nav>
+                    <div class="sidebar-footer">
+                        <div class="user-pill">
+                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256&h=256" alt="Avatar" id="user-dp-side" class="avatar">
+                            <div class="user-info">
+                                <span class="user-name" id="user-name-side">Loading...</span>
+                                <span class="user-role">Patient Account</span>
+                            </div>
+                        </div>
+                        <a href="#" class="btn-logout" id="btn-logout-sidebar"><i class="fa-solid fa-power-off"></i> Log Out</a>
+                    </div>
+                </aside>
+
+                <!-- Main Content Area -->
+                <main class="content-area">
+                    <!-- Main Header -->
+                    <header class="app-header">
+                        <div class="header-welcome">
+                            <h2 id="header-title">Cardiac Assessment</h2>
+                            <p id="header-subtitle">Welcome back, <span id="user-greeting-name">User</span></p>
+                        </div>
+                        <div class="header-actions">
+                            <button class="icon-btn" id="btn-notif-bell"><i class="fa-regular fa-bell"></i><span class="badge" id="notif-badge">2</span></button>
+                            <button class="icon-btn theme-toggle-btn"><i class="fa-regular fa-moon"></i></button>
+                            <div class="profile-summary">
+                                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256&h=256" alt="Avatar" id="user-dp-header" class="avatar">
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Tab Container -->
+                    <div class="tab-viewport">
+                        <!-- ==================== DASHBOARD TAB ==================== -->
+                        <div id="tab-dashboard" class="tab-content active">
+                            <!-- Dashboard Grid Layout -->
+                            <div class="dashboard-grid">
+                                <!-- AI Prediction Meter Card -->
+                                <div class="dashboard-card status-card">
+                                    <div class="card-header">
+                                        <h3>Fibrosis AI Analysis</h3>
+                                        <span class="report-date" id="dash-report-date">Last scan: 2 hours ago</span>
+                                    </div>
+                                    <div class="status-flex">
+                                        <div class="risk-gauge-container">
+                                            <!-- SVG Circular Progress Bar -->
+                                            <svg class="circular-gauge" viewBox="0 0 120 120">
+                                                <circle class="bg" cx="60" cy="60" r="50"></circle>
+                                                <circle class="fill" id="gauge-fill-circle" cx="60" cy="60" r="50" stroke-dasharray="314.16" stroke-dashoffset="314.16"></circle>
+                                            </svg>
+                                            <div class="gauge-overlay">
+                                                <span class="pct" id="gauge-pct">15%</span>
+                                                <span class="label">Probability</span>
+                                            </div>
+                                        </div>
+                                        <div class="risk-verdict-box">
+                                            <div class="verdict-badge" id="dash-verdict-badge">Low Risk</div>
+                                            <h4 class="verdict-title" id="dash-verdict-title">Low Fibrosis Progression</h4>
+                                            <p class="verdict-desc" id="dash-verdict-desc">Low probability of cardiac fibrosis progression. Maintain your active health habits.</p>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer">
+                                        <button class="btn btn-outline btn-small" id="btn-how-ai-works"><i class="fa-solid fa-circle-info"></i> How AI model works</button>
+                                        <button class="btn btn-primary btn-small" id="btn-go-upload-tab"><i class="fa-solid fa-upload"></i> Upload new report</button>
+                                    </div>
+                                </div>
+
+                                <!-- Biomarkers Visualizer -->
+                                <div class="dashboard-card biomarkers-card">
+                                    <div class="card-header">
+                                        <h3>Cardiac Biomarkers</h3>
+                                        <span class="card-subtitle">AI-extracted from diagnostic reports</span>
+                                    </div>
+                                    <div class="biomarkers-list">
+                                        <!-- Biomarker item: Troponin -->
+                                        <div class="biomarker-item">
+                                            <div class="bio-meta">
+                                                <div class="bio-name">
+                                                    <strong>Troponin I</strong>
+                                                    <span>Myocardial Injury Marker</span>
+                                                </div>
+                                                <div class="bio-value">
+                                                    <span class="value-num" id="bio-val-trop">0.03</span> <span class="unit">ng/mL</span>
+                                                </div>
+                                            </div>
+                                            <div class="bio-slider-container">
+                                                <div class="bio-slider-bar">
+                                                    <div class="fill green" id="bio-bar-trop" style="width: 30%;"></div>
+                                                </div>
+                                                <div class="bio-slider-markers">
+                                                    <span>Normal (&lt;0.04)</span>
+                                                    <span class="text-right">Elevated (&gt;0.04)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Biomarker item: BNP -->
+                                        <div class="biomarker-item">
+                                            <div class="bio-meta">
+                                                <div class="bio-name">
+                                                    <strong>BNP</strong>
+                                                    <span>Ventricle Stress Marker</span>
+                                                </div>
+                                                <div class="bio-value">
+                                                    <span class="value-num" id="bio-val-bnp">65.0</span> <span class="unit">pg/mL</span>
+                                                </div>
+                                            </div>
+                                            <div class="bio-slider-container">
+                                                <div class="bio-slider-bar">
+                                                    <div class="fill green" id="bio-bar-bnp" style="width: 45%;"></div>
+                                                </div>
+                                                <div class="bio-slider-markers">
+                                                    <span>Normal (&lt;100)</span>
+                                                    <span class="text-right">Elevated (&gt;100)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Biomarker item: NT-proBNP -->
+                                        <div class="biomarker-item">
+                                            <div class="bio-meta">
+                                                <div class="bio-name">
+                                                    <strong>NT-proBNP</strong>
+                                                    <span>Heart Stress Precursor</span>
+                                                </div>
+                                                <div class="bio-value">
+                                                    <span class="value-num" id="bio-val-nt">120.0</span> <span class="unit">pg/mL</span>
+                                                </div>
+                                            </div>
+                                            <div class="bio-slider-container">
+                                                <div class="bio-slider-bar">
+                                                    <div class="fill green" id="bio-bar-nt" style="width: 25%;"></div>
+                                                </div>
+                                                <div class="bio-slider-markers">
+                                                    <span>Normal (&lt;125)</span>
+                                                    <span class="text-right">Elevated (&gt;125)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer mt-10">
+                                        <button class="btn btn-text btn-block text-center" id="btn-see-bio-details">Understand Biomarker Thresholds <i class="fa-solid fa-arrow-right"></i></button>
+                                    </div>
+                                </div>
+
+                                <!-- Lifestyle Summary -->
+                                <div class="dashboard-card inline-card">
+                                    <div class="card-header">
+                                        <h3>Lifestyle & Environment</h3>
+                                        <i class="fa-solid fa-person-running header-accent"></i>
+                                    </div>
+                                    <div class="lifestyle-quick-stats">
+                                        <div class="stat-bubble">
+                                            <span class="lbl">Exercise</span>
+                                            <span class="val" id="dash-life-exercise">3-5 hrs</span>
+                                        </div>
+                                        <div class="stat-bubble">
+                                            <span class="lbl">Sodium Intake</span>
+                                            <span class="val" id="dash-life-diet">Moderate</span>
+                                        </div>
+                                        <div class="stat-bubble">
+                                            <span class="lbl">Exposure</span>
+                                            <span class="val" id="dash-life-exposure">None</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Action Recommendations -->
+                                <div class="dashboard-card inline-card">
+                                    <div class="card-header">
+                                        <h3>Clinical Recommendations</h3>
+                                        <i class="fa-solid fa-heart-pulse header-accent"></i>
+                                    </div>
+                                    <ul class="recommendation-list-dash" id="dash-recommendations-list">
+                                        <li>Continue balanced nutrition and active exercise.</li>
+                                        <li>Monitor blood pressure monthly.</li>
+                                        <li>Next medical screening recommended in 6 months.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ==================== REPORTS & UPLOAD TAB ==================== -->
+                        <div id="tab-reports" class="tab-content">
+                            <!-- Report Upload Segment -->
+                            <div class="upload-area-container">
+                                <div class="upload-header">
+                                    <h3>Analyze Diagnostic Reports</h3>
+                                    <p>Upload files to trigger AI extraction of cardiac biomarkers and evaluate fibrosis risks. Standard test names in report files will trigger mock risks (e.g. including 'healthy', 'risk' or 'high_risk' in the filename).</p>
+                                </div>
+
+                                <!-- Drag and Drop Box -->
+                                <div class="drag-drop-zone" id="drop-zone">
+                                    <input type="file" id="file-picker" accept=".pdf,.png,.jpg,.jpeg" style="display: none;">
+                                    <div class="zone-content" id="zone-prompt">
+                                        <i class="fa-solid fa-cloud-arrow-up cloud-icon"></i>
+                                        <h4>Drag and drop your medical report here</h4>
+                                        <p>or click to browse local files (PDF, JPG, PNG)</p>
+                                        <span class="file-limits">Maximum size: 10MB</span>
+                                    </div>
+
+                                    <!-- Uploading Progress State -->
+                                    <div class="zone-content hidden" id="zone-uploading">
+                                        <div class="spinner"></div>
+                                        <h4 class="mt-20">Uploading medical file...</h4>
+                                        <p id="uploading-filename">file_name.pdf</p>
+                                        <div class="progress-bar-container">
+                                            <div class="progress-bar-fill" id="upload-progress-fill"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- AI Analysis Progress State -->
+                                    <div class="zone-content hidden" id="zone-analyzing">
+                                        <div class="ai-scan-animation">
+                                            <div class="scanner-line"></div>
+                                            <i class="fa-solid fa-brain brain-network"></i>
+                                        </div>
+                                        <h4 class="mt-20 text-glow">AI Neural Progression Scoring...</h4>
+                                        <p class="analyzing-status-text" id="ai-status-text">Parsing biomarkers (Troponin, BNP, NT-proBNP)...</p>
+                                        <div class="analysis-milestones">
+                                            <span class="milestone done" id="ms-1"><i class="fa-solid fa-circle-check"></i> Read Document</span>
+                                            <span class="milestone" id="ms-2"><i class="fa-regular fa-circle"></i> Extract Biomarkers</span>
+                                            <span class="milestone" id="ms-3"><i class="fa-regular fa-circle"></i> AI progression risk model</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Analysis Complete State -->
+                                    <div class="zone-content hidden" id="zone-complete">
+                                        <i class="fa-regular fa-circle-check completed-icon icon-bounce"></i>
+                                        <h4 class="mt-10">AI Diagnostic Complete</h4>
+                                        <p id="complete-filename">file_name.pdf</p>
+                                        <button class="btn btn-primary mt-20" id="btn-view-analysis-result">View Results</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Upload history -->
+                            <div class="dashboard-card mt-20">
+                                <div class="card-header">
+                                    <h3>Diagnostic Assessment History</h3>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="report-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Report Filename</th>
+                                                <th>Scan Date</th>
+                                                <th>Risk Score</th>
+                                                <th>Verdict</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="report-history-rows">
+                                            <!-- Injected dynamically -->
+                                            <tr>
+                                                <td colspan="5" class="text-center py-20 text-muted">No diagnostic reports uploaded yet.</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ==================== HEALTH SUMMARY TAB ==================== -->
+                        <div id="tab-health" class="tab-content">
+                            <div class="health-summary-grid">
+                                <!-- Health Dashboard Detail Card -->
+                                <div class="dashboard-card">
+                                    <div class="card-header">
+                                        <h3>Health Profile Overview</h3>
+                                        <button class="btn btn-outline btn-small" id="btn-edit-health-metrics"><i class="fa-solid fa-pen-to-square"></i> Edit Details</button>
+                                    </div>
+                                    <div class="health-meta-grid">
+                                        <div class="meta-item">
+                                            <span class="lbl">Date of Birth</span>
+                                            <span class="val" id="hlth-dob">Oct 12, 1988</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <span class="lbl">Age</span>
+                                            <span class="val" id="hlth-age">37 Years</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <span class="lbl">Gender</span>
+                                            <span class="val" id="hlth-gender">Male</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <span class="lbl">Blood Group</span>
+                                            <span class="val" id="hlth-blood">O+</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <span class="lbl">Height</span>
+                                            <span class="val" id="hlth-height">178 cm</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <span class="lbl">Weight</span>
+                                            <span class="val" id="hlth-weight">78 kg</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <span class="lbl">BMI</span>
+                                            <span class="val" id="hlth-bmi">24.6 (Normal)</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Pre-existing Conditions -->
+                                <div class="dashboard-card">
+                                    <div class="card-header">
+                                        <h3>Medical Diagnostics & Conditions</h3>
+                                    </div>
+                                    <div class="tag-container" id="hlth-conditions-tags">
+                                        <span class="empty-tag">No medical conditions specified.</span>
+                                    </div>
+                                </div>
+
+                                <!-- Detailed Recommendations Card -->
+                                <div class="dashboard-card col-span-2">
+                                    <div class="card-header">
+                                        <h3>Tailored Medical Recommendations</h3>
+                                        <span class="card-subtitle" id="hlth-rec-date">Generated on: Today</span>
+                                    </div>
+                                    <div class="recommendations-box">
+                                        <div class="rec-group text-green" id="rec-group-healthy">
+                                            <h4><i class="fa-solid fa-circle-check"></i> Standard Maintenance Guidelines</h4>
+                                            <ul id="hlth-recs-healthy">
+                                                <li>Maintain balanced nutrition and exercise.</li>
+                                                <li>Continue daily aerobic cardiovascular exercise.</li>
+                                                <li>Schedule an annual checkup to monitor markers.</li>
+                                            </ul>
+                                        </div>
+                                        <div class="rec-group text-orange hidden" id="rec-group-risk">
+                                            <h4><i class="fa-solid fa-circle-exclamation"></i> Intermediate Stress Protocols</h4>
+                                            <ul id="hlth-recs-risk">
+                                                <li>Reduce sodium intake under 2000mg/day to control blood pressure.</li>
+                                                <li>Consult a cardiologist to run standard cardiac evaluations (ECG, echocardiogram).</li>
+                                                <li>Maintain light physical activity and monitor heart rate during exertion.</li>
+                                            </ul>
+                                        </div>
+                                        <div class="rec-group text-red hidden" id="rec-group-high">
+                                            <h4><i class="fa-solid fa-triangle-exclamation"></i> High Risk Urgent Action Plan</h4>
+                                            <ul id="hlth-recs-high">
+                                                <li>Schedule immediate diagnostic cardiac imaging (Cardiac MRI) to quantify fibrosis volume.</li>
+                                                <li>Schedule an urgent consult with a clinical cardiologist or heart failure specialist.</li>
+                                                <li>Strictly restrict high-exertion training or strenuous activity.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ==================== EDIT PROFILE TAB ==================== -->
+                        <div id="tab-profile" class="tab-content">
+                            <div class="dashboard-card max-w-700">
+                                <div class="card-header">
+                                    <h3>Personal Details & Demographics</h3>
+                                    <p>Update your personal details and cardiac metrics for the AI progression report</p>
+                                </div>
+                                <form id="form-edit-profile" class="profile-form">
+                                    <div class="dp-edit-row">
+                                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256&h=256" alt="Avatar" id="user-dp-profile" class="avatar-large">
+                                        <div class="dp-actions">
+                                            <input type="file" id="dp-file-picker" accept="image/*" style="display: none;">
+                                            <button type="button" class="btn btn-outline btn-small" id="btn-change-dp">Upload New Image</button>
+                                            <p class="helper-text">Supports JPG or PNG. Max size 2MB.</p>
+                                        </div>
+                                    </div>
+                                    <div class="input-grid">
+                                        <div class="input-group">
+                                            <label for="prof-name">Full Name</label>
+                                            <input type="text" id="prof-name" required placeholder="John Doe">
+                                        </div>
+                                        <div class="input-group">
+                                            <label for="prof-email">Email Address</label>
+                                            <input type="email" id="prof-email" required disabled placeholder="john@example.com">
+                                        </div>
+                                        <div class="input-group">
+                                            <label for="prof-phone">Phone Number</label>
+                                            <input type="tel" id="prof-phone" placeholder="+1 (555) 019-9922">
+                                        </div>
+                                        <div class="input-group">
+                                            <label for="prof-address">Address</label>
+                                            <input type="text" id="prof-address" placeholder="123 Heart Lane, Wellness City">
+                                        </div>
+                                        <div class="input-group">
+                                            <label for="prof-emergency">Emergency Contact</label>
+                                            <input type="text" id="prof-emergency" placeholder="Jane Doe (+1 555-0100)">
+                                        </div>
+                                    </div>
+                                    <div class="form-actions mt-20">
+                                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- ==================== SETTINGS TAB ==================== -->
+                        <div id="tab-settings" class="tab-content">
+                            <div class="settings-grid">
+                                <!-- Personalization Settings -->
+                                <div class="dashboard-card">
+                                    <div class="card-header">
+                                        <h3>Visual Personalization</h3>
+                                    </div>
+                                    <div class="settings-options">
+                                        <!-- Dark Mode Toggler -->
+                                        <div class="setting-row">
+                                            <div class="setting-info">
+                                                <strong>Dark Appearance</strong>
+                                                <span>Apply a high-contrast dark theme to the screen</span>
+                                            </div>
+                                            <label class="switch">
+                                                <input type="checkbox" id="setting-dark-mode">
+                                                <span class="slider-round"></span>
+                                            </label>
+                                        </div>
+
+                                        <!-- Theme Toggler -->
+                                        <div class="setting-row-column">
+                                            <div class="setting-info mb-10">
+                                                <strong>Active Theme Accent</strong>
+                                                <span>Select UI primary color accent</span>
+                                            </div>
+                                            <div class="theme-bubbles">
+                                                <div class="theme-bubble blue active" data-theme="blue" title="Medical Blue"></div>
+                                                <div class="theme-bubble green" data-theme="green" title="Health Green"></div>
+                                                <div class="theme-bubble purple" data-theme="purple" title="Calm Purple"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sound and Notifications Settings -->
+                                <div class="dashboard-card">
+                                    <div class="card-header">
+                                        <h3>App Notifications & Sound</h3>
+                                    </div>
+                                    <div class="settings-options">
+                                        <!-- Sound toggle -->
+                                        <div class="setting-row">
+                                            <div class="setting-info">
+                                                <strong>Interface Sound Effects</strong>
+                                                <span>Play tap sounds and success alerts</span>
+                                            </div>
+                                            <label class="switch">
+                                                <input type="checkbox" id="setting-sound-effects" checked>
+                                                <span class="slider-round"></span>
+                                            </label>
+                                        </div>
+
+                                        <!-- Push Notifications -->
+                                        <div class="setting-row">
+                                            <div class="setting-info">
+                                                <strong>Push Notifications</strong>
+                                                <span>Send alert banners on biomarker updates</span>
+                                            </div>
+                                            <label class="switch">
+                                                <input type="checkbox" id="setting-push-notif" checked>
+                                                <span class="slider-round"></span>
+                                            </label>
+                                        </div>
+
+                                        <!-- Email notifications -->
+                                        <div class="setting-row">
+                                            <div class="setting-info">
+                                                <strong>Email Reports</strong>
+                                                <span>Email PDF summaries on report parsing</span>
+                                            </div>
+                                            <label class="switch">
+                                                <input type="checkbox" id="setting-email-notif">
+                                                <span class="slider-round"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+                <!-- Mobile Navigation Bar (Mobile View) -->
+                <nav class="mobile-bottom-nav">
+                    <a href="#" class="mobile-nav-item active" data-tab="tab-dashboard"><i class="fa-solid fa-chart-line"></i><span>Dash</span></a>
+                    <a href="#" class="mobile-nav-item" data-tab="tab-reports"><i class="fa-solid fa-file-medical"></i><span>Reports</span></a>
+                    <a href="#" class="mobile-nav-item" data-tab="tab-health"><i class="fa-solid fa-notes-medical"></i><span>Health</span></a>
+                    <a href="#" class="mobile-nav-item" data-tab="tab-profile"><i class="fa-solid fa-user-pen"></i><span>Profile</span></a>
+                    <a href="#" class="mobile-nav-item" data-tab="tab-settings"><i class="fa-solid fa-gears"></i><span>Settings</span></a>
+                </nav>
+            </div>
+        </section>
+    </div>
+
+    <!-- ==================== HOW AI WORKS DIALOG ==================== -->
+    <div class="dialog-overlay" id="dialog-how-ai">
+        <div class="dialog-card">
+            <div class="dialog-header">
+                <h3><i class="fa-solid fa-brain"></i> Arsenic Fibrosis Progression AI Model</h3>
+                <button class="dialog-close" id="btn-close-dialog-how-ai"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="dialog-body">
+                <h4>Arsenic-Induced Cardiac Stress</h4>
+                <p>Prolonged environmental arsenic exposure can lead to intracellular stress, causing myocardial damage that triggers cardiac fibroblast activation. This results in progressive extracellular matrix accumulation (scarring/fibrosis) and heart failure.</p>
+                
+                <h4>Diagnostic Biomarkers Parsed</h4>
+                <p>Our deep neural network analyzes diagnostic reports for three critical biochemical indices:</p>
+                <div class="biomarker-guide">
+                    <div class="guide-item">
+                        <strong>Troponin I (cTnI)</strong>
+                        <span>Cardiac muscle injury marker. Healthy range: &lt; 0.04 ng/mL. Levels rise as myofibrils suffer damage.</span>
+                    </div>
+                    <div class="guide-item">
+                        <strong>BNP & NT-proBNP</strong>
+                        <span>Myocardial stretch markers. In response to volume and pressure strain, ventricles release BNP. Healthy ranges: BNP &lt; 100 pg/mL, NT-proBNP &lt; 125 pg/mL.</span>
+                    </div>
+                </div>
+                
+                <h4>Progression Risk Calculation</h4>
+                <p>The progression risk algorithm blends biomarker elevation curves with clinical histories (e.g. pre-existing hypertension or direct arsenic exposure history) using a neural regression classifier. Results categorize users into Healthy, Low Risk, Risk, or High Risk, helping cardiologists formulate early intervention plans.</p>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn btn-primary" id="btn-close-dialog-how-ai-ok">I Understand</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== EDIT HEALTH PROFILE DIALOG ==================== -->
+    <div class="dialog-overlay" id="dialog-edit-health">
+        <div class="dialog-card" style="max-width: 580px;">
+            <div class="dialog-header">
+                <h3><i class="fa-solid fa-notes-medical text-blue"></i> Edit Health Parameters</h3>
+                <button class="dialog-close" id="btn-close-dialog-edit-health"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-edit-health">
+                <div class="dialog-body">
+                    <div class="input-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="input-group">
+                            <label for="edit-pat-dob">Date of Birth</label>
+                            <input type="date" id="edit-pat-dob" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="edit-pat-gender">Gender</label>
+                            <select id="edit-pat-gender" required>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="edit-pat-blood">Blood Group</label>
+                            <select id="edit-pat-blood">
+                                <option value="A+">A+</option>
+                                <option value="A-">A-</option>
+                                <option value="B+">B+</option>
+                                <option value="B-">B-</option>
+                                <option value="AB+">AB+</option>
+                                <option value="AB-">AB-</option>
+                                <option value="O+">O+</option>
+                                <option value="O-">O-</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="edit-pat-height">Height (cm)</label>
+                            <input type="number" id="edit-pat-height" required placeholder="Height" min="50" max="250">
+                        </div>
+                        <div class="input-group">
+                            <label for="edit-pat-weight">Weight (kg)</label>
+                            <input type="number" id="edit-pat-weight" required placeholder="Weight" min="20" max="300">
+                        </div>
+                        <div class="input-group">
+                            <label for="edit-life-exercise">Exercise / Week</label>
+                            <select id="edit-life-exercise">
+                                <option value="None">Sedentary (0 hrs)</option>
+                                <option value="1-2 hours">Light (1-2 hrs)</option>
+                                <option value="3-5 hours">Moderate (3-5 hrs)</option>
+                                <option value="5+ hours">Active (5+ hrs)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="edit-life-sodium">Sodium Intake</label>
+                            <select id="edit-life-sodium">
+                                <option value="Low (<1500mg/day)">Low (&lt; 1500mg)</option>
+                                <option value="Moderate (1500-2300mg/day)">Moderate (1500-2300mg)</option>
+                                <option value="High (>2300mg/day)">High (&gt; 2300mg)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="edit-life-smoke">Smoking Habit</label>
+                            <select id="edit-life-smoke">
+                                <option value="Never">Never Smoked</option>
+                                <option value="Former Smoker">Former Smoker</option>
+                                <option value="Active Smoker">Active Smoker</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="checkbox-header mt-10">
+                        <label><strong>Diagnosed Medical Conditions:</strong></label>
+                    </div>
+                    <div class="checkbox-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <label class="checkbox-card" style="padding: 10px;">
+                            <input type="checkbox" name="edit_medical_history" value="Hypertension">
+                            <span class="chk-box"></span>
+                            <span class="chk-label" style="font-size: 0.8rem;"><i class="fa-solid fa-droplet text-red"></i> Hypertension</span>
+                        </label>
+                        <label class="checkbox-card" style="padding: 10px;">
+                            <input type="checkbox" name="edit_medical_history" value="Diabetes">
+                            <span class="chk-box"></span>
+                            <span class="chk-label" style="font-size: 0.8rem;"><i class="fa-solid fa-crutch text-blue"></i> Diabetes</span>
+                        </label>
+                        <label class="checkbox-card" style="padding: 10px;">
+                            <input type="checkbox" name="edit_medical_history" value="Coronary Artery Disease">
+                            <span class="chk-box"></span>
+                            <span class="chk-label" style="font-size: 0.8rem;"><i class="fa-solid fa-heart-circle-exclamation text-orange"></i> CAD</span>
+                        </label>
+                        <label class="checkbox-card" style="padding: 10px;">
+                            <input type="checkbox" name="edit_medical_history" value="Arsenic Exposure History">
+                            <span class="chk-box"></span>
+                            <span class="chk-label" style="font-size: 0.8rem;"><i class="fa-solid fa-skull-crossbones text-dark"></i> Arsenic Exposure</span>
+                        </label>
+                        <label class="checkbox-card" style="padding: 10px;">
+                            <input type="checkbox" name="edit_medical_history" value="Chronic Kidney Disease">
+                            <span class="chk-box"></span>
+                            <span class="chk-label" style="font-size: 0.8rem;"><i class="fa-solid fa-vial"></i> Kidney Disease</span>
+                        </label>
+                        <label class="checkbox-card" style="padding: 10px;">
+                            <input type="checkbox" name="edit_medical_history" value="Heart Valve Disease">
+                            <span class="chk-box"></span>
+                            <span class="chk-label" style="font-size: 0.8rem;"><i class="fa-solid fa-circle-nodes"></i> Valve Disease</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="dialog-footer" style="padding-top: 15px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" id="btn-cancel-dialog-edit-health">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Details</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== BIOMARKERS DIALOG ==================== -->
+    <div class="dialog-overlay" id="dialog-biomarkers">
+        <div class="dialog-card">
+            <div class="dialog-header">
+                <h3><i class="fa-solid fa-flask"></i> Clinical Biomarkers Thresholds</h3>
+                <button class="dialog-close" id="btn-close-dialog-biomarkers"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="dialog-body">
+                <div class="table-responsive">
+                    <table class="biomarker-table">
+                        <thead>
+                            <tr>
+                                <th>Biomarker</th>
+                                <th>Optimal Normal</th>
+                                <th>Borderline Risk</th>
+                                <th>Elevated / High Risk</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Troponin I</strong></td>
+                                <td class="text-green">&lt; 0.04 ng/mL</td>
+                                <td class="text-orange">0.04 - 0.12 ng/mL</td>
+                                <td class="text-red">&gt; 0.12 ng/mL</td>
+                            </tr>
+                            <tr>
+                                <td><strong>BNP</strong></td>
+                                <td class="text-green">&lt; 100 pg/mL</td>
+                                <td class="text-orange">100 - 300 pg/mL</td>
+                                <td class="text-red">&gt; 300 pg/mL</td>
+                            </tr>
+                            <tr>
+                                <td><strong>NT-proBNP</strong></td>
+                                <td class="text-green">&lt; 125 pg/mL</td>
+                                <td class="text-orange">125 - 450 pg/mL</td>
+                                <td class="text-red">&gt; 450 pg/mL</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted mt-10"><small>Note: Normal baselines may vary slightly based on patient age and chronic kidney function values.</small></p>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn btn-primary" id="btn-close-dialog-biomarkers-ok">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== NOTIFICATIONS DRAWER ==================== -->
+    <div class="drawer-overlay" id="drawer-notif">
+        <div class="drawer-card">
+            <div class="drawer-header">
+                <h3>Notifications</h3>
+                <button class="drawer-close" id="btn-close-drawer-notif"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="drawer-body">
+                <div class="notification-item unread">
+                    <div class="notif-icon bg-green-light"><i class="fa-solid fa-check text-green"></i></div>
+                    <div class="notif-content">
+                        <strong>AI Report Parsed Successfully</strong>
+                        <p>Your uploaded file high_risk_report.pdf has been processed. Cardiac progression results updated.</p>
+                        <span>Today, 10:30 AM</span>
+                    </div>
+                </div>
+                <div class="notification-item unread">
+                    <div class="notif-icon bg-blue-light"><i class="fa-solid fa-circle-info text-blue"></i></div>
+                    <div class="notif-content">
+                        <strong>Patient Profile Completed</strong>
+                        <p>Your demographic and medical background details are set up.</p>
+                        <span>Today, 10:15 AM</span>
+                    </div>
+                </div>
+                <div class="notification-item">
+                    <div class="notif-icon"><i class="fa-regular fa-bell"></i></div>
+                    <div class="notif-content">
+                        <strong>Welcome to CardioProgress</strong>
+                        <p>Monitor arsenic-induced cardiac fibrosis progress using our advanced neural models.</p>
+                        <span>Yesterday</span>
+                    </div>
+                </div>
+            </div>
+            <div class="drawer-footer">
+                <button class="btn btn-text btn-block" id="btn-mark-all-read">Mark all as read</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK (v10.8.0 Compat CDN) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <!-- Core App Logic -->
+    <script src="app.js"></script>
+</body>
+</html>
