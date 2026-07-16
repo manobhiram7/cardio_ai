@@ -1,6 +1,7 @@
 # Temporary reports
 tests/reports/*.json
 tests/reports/dashboard.html
+tests/reports/report.csv
 
 # Local IDE and SDK properties
 local.properties
