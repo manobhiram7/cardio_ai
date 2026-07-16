@@ -195,8 +195,10 @@ jobs:
       - name: Compile Unified HTML Dashboard
         run: java tests/RunTests.java compile
 
-      - name: Upload Master Dashboard Report
+      - name: Upload Master Dashboard & Excel CSV Report
         uses: actions/upload-artifact@v4
         with:
-          name: unified-qa-dashboard
-          path: tests/reports/dashboard.html
+          name: unified-qa-reports
+          path: |
+            tests/reports/dashboard.html
+            tests/reports/report.csv

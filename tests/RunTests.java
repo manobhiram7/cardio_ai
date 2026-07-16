@@ -603,6 +603,7 @@ public class RunTests {
         int totalPassed = 0;
         int totalFailed = 0;
         int totalDuration = 0;
+        List<TestCase> allTestCases = new ArrayList<>();
 
         StringBuilder aggregatedCasesJson = new StringBuilder();
         aggregatedCasesJson.append("[\n");
@@ -683,8 +684,10 @@ public class RunTests {
 
             String successRate = String.format(Locale.US, "%.1f", ((double)passed / total) * 100);
 
-            // Add to JavaScript array
+            // Add to JavaScript array & global list
             for (TestCase tc : testCases) {
+                tc.suite = suite;
+                allTestCases.add(tc);
                 if (!firstCase) {
                     aggregatedCasesJson.append(",\n");
                 }
@@ -1081,6 +1084,36 @@ public class RunTests {
         } catch (IOException e) {
             System.err.println("Failed to write dashboard HTML: " + e.getMessage());
         }
+
+        saveCsvReport(allTestCases);
+    }
+
+    private static void saveCsvReport(List<TestCase> testCases) {
+        StringBuilder csv = new StringBuilder();
+        csv.append("Suite Category,Test ID,Validation Description,Duration (ms),Status,Error Details\n");
+        for (TestCase tc : testCases) {
+            csv.append(escapeCsvField(tc.suite)).append(",")
+               .append(escapeCsvField(tc.id)).append(",")
+               .append(escapeCsvField(tc.name)).append(",")
+               .append(tc.durationMs).append(",")
+               .append(escapeCsvField(tc.status)).append(",")
+               .append(escapeCsvField(tc.error == null ? "" : tc.error))
+               .append("\n");
+        }
+        try {
+            Files.write(reportsDir.resolve("report.csv"), csv.toString().getBytes());
+            System.out.println("Unified CSV Report (Excel) successfully created: " + reportsDir.resolve("report.csv").toString());
+        } catch (IOException e) {
+            System.err.println("Failed to write CSV report: " + e.getMessage());
+        }
+    }
+
+    private static String escapeCsvField(String field) {
+        if (field == null) return "";
+        if (field.contains(",") || field.contains("\"") || field.contains("\n") || field.contains("\r")) {
+            return "\"" + field.replace("\"", "\"\"") + "\"";
+        }
+        return field;
     }
 
     private static String findJsonValue(String json, String key) {
