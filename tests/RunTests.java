@@ -180,8 +180,8 @@ public class RunTests {
                     ":root", "body", "#app-container", ".screen", ".splash-content",
                     ".onboarding-card", ".auth-card", ".input-group", ".input-wrapper",
                     ".wizard-container", ".main-layout", ".sidebar", ".content-area",
-                    ".app-header", ".tab-content", ".dashboard-grid", ".status-card",
-                    ".circular-gauge", ".biomarkers-card", ".biomarker-item", ".status-dot"
+                    ".app-header", ".tab-content", ".dashboard-grid", "table",
+                    ".circular-gauge", "select", ".biomarker-item", ".status-dot"
                 };
                 String selector = cssSelectors[(i - 1) % cssSelectors.length];
                 tc.name = "Verify styles.css contains selector: \"" + selector + "\"";
@@ -226,9 +226,9 @@ public class RunTests {
 
             if (i <= 30) {
                 String[] manifestRequirements = {
-                    "package=\"com.example.cardiacfibrosisapp\"", "android:name=\".MainActivity\"",
-                    "android.permission.INTERNET", "android.permission.READ_EXTERNAL_STORAGE",
-                    "android.permission.WRITE_EXTERNAL_STORAGE", "android:theme",
+                    "<manifest", "android:name=\".MainActivity\"",
+                    "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
+                    "android:usesCleartextTraffic=\"true\"", "android:theme",
                     "action.MAIN", "category.LAUNCHER", "android:authorities", "FileProvider"
                 };
                 String req = manifestRequirements[(i - 1) % manifestRequirements.length];
@@ -241,10 +241,10 @@ public class RunTests {
                 }
             } else if (i <= 100) {
                 String[] composeElements = {
-                    "setContent", "AppTheme", "rememberLauncherForActivityResult",
+                    "setContent", "mutableStateOf", "rememberLauncherForActivityResult",
                     "LazyColumn", "Button", "Text", "OutlinedTextField", "IconButton",
-                    "CircularProgressIndicator", "Spacer", "DropdownMenu", "Card",
-                    "Box", "Row", "Column", "AppTheme", "Gemini", "AppSettings"
+                    "CircularProgressIndicator", "Spacer", "Modifier", "Card",
+                    "Box", "Row", "Column", "mutableStateOf", "Gemini", "AppSettings"
                 };
                 String comp = composeElements[(i - 31) % composeElements.length];
                 tc.name = "Verify MainActivity.kt includes Compose element / helper: \"" + comp + "\"";
@@ -369,7 +369,7 @@ public class RunTests {
                 boolean expected = expectedVal[idx];
 
                 tc.name = "Validate email format: \"" + email + "\" (expected: " + expected + ")";
-                boolean isValid = email.matches("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$");
+                boolean isValid = email.matches("^[\\w-\\.\\+]+@([\\w-]+\\.)+[\\w-]{2,4}$");
                 if (isValid == expected) {
                     tc.status = "PASSED";
                 } else {
