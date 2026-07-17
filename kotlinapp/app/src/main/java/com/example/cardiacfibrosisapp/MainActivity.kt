@@ -515,7 +515,25 @@ fun AppNavigator() {
         label = "ScreenTransition"
     ) { targetState ->
         when (targetState) {
-            "splash" -> SplashScreen { screenState.value = "on1" }
+            "splash" -> SplashScreen {
+                val savedUserId = try {
+                    AppSettings.prefs.getString("logged_in_user_id", "") ?: ""
+                } catch (e: Exception) {
+                    ""
+                }
+                val firebaseUser = try {
+                    com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                } catch (e: Exception) {
+                    null
+                }
+                val userId = if (firebaseUser != null) firebaseUser.uid else savedUserId
+                if (userId.isNotEmpty()) {
+                    loggedInUserId.value = userId
+                    screenState.value = "home"
+                } else {
+                    screenState.value = "on1"
+                }
+            }
             "on1" -> Onboarding1(
                 onNext = { screenState.value = "on2" },
                 onSkip = { screenState.value = "login" }
@@ -532,6 +550,11 @@ fun AppNavigator() {
                 onSignUp = { screenState.value = "signup" },
                 onForgotPassword = { screenState.value = "forgot_password" },
                 onLoginSuccess = { userId -> 
+                    try {
+                        AppSettings.prefs.edit().putString("logged_in_user_id", userId).apply()
+                    } catch (e: Exception) {
+                        // ignore
+                    }
                     loggedInUserId.value = userId
                     screenState.value = "continue_patient" 
                 }
@@ -539,6 +562,11 @@ fun AppNavigator() {
             "signup" -> SignupScreen(
                 onSignIn = { screenState.value = "login" },
                 onSignUpSuccess = { userId -> 
+                    try {
+                        AppSettings.prefs.edit().putString("logged_in_user_id", userId).apply()
+                    } catch (e: Exception) {
+                        // ignore
+                    }
                     loggedInUserId.value = userId
                     screenState.value = "verify" 
                 }
