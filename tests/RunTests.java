@@ -21,7 +21,7 @@ public class RunTests {
 
     public static void main(String[] args) {
         // Initialize paths relative to workspace root
-        Path baseDir = Paths.get("d:\\github push");
+        Path baseDir = Paths.get("").toAbsolutePath();
         webappDir = baseDir.resolve("webapp");
         kotlinDir = baseDir.resolve("kotlinapp");
         reportsDir = baseDir.resolve("tests").resolve("reports");
