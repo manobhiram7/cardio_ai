@@ -2354,15 +2354,11 @@ fun PatientDetailsScreen(userId: String, onBack: () -> Unit, onContinue: () -> U
                                         height_cm = height,
                                         weight_kg = weight
                                     )
-                                    val response = RetrofitClient.apiService.savePatientDetails(request)
-                                    if (response.status == "success") {
-                                        onContinue()
-                                    } else {
-                                        Toast.makeText(context, response.message ?: "Failed to save", Toast.LENGTH_SHORT).show()
-                                    }
+                                    RetrofitClient.apiService.savePatientDetails(request)
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Error saving: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    // Non-blocking
                                 }
+                                onContinue()
                             }
                         } else {
                             onContinue()

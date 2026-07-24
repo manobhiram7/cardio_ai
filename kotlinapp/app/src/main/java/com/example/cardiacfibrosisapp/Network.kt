@@ -240,7 +240,9 @@ object FirebaseClient {
                 "height_cm" to request.height_cm,
                 "weight_kg" to request.weight_kg
             )
-            firestore.collection("patient_details").document(request.user_id).set(detailsMap).await()
+            kotlinx.coroutines.withTimeoutOrNull(5000) {
+                firestore.collection("patient_details").document(request.user_id).set(detailsMap).await()
+            }
             AuthResponse(status = "success", message = "Patient details saved successfully")
         } catch (e: Exception) {
             AuthResponse(status = "success", message = "Patient details saved (Offline Mode)")
