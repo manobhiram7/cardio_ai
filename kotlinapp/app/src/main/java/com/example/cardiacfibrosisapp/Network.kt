@@ -268,17 +268,17 @@ object FirebaseClient {
             }
         }
         return try {
-            val doc = try {
-                kotlinx.coroutines.withTimeoutOrNull(2000) {
-                    firestore.collection("patient_details").document(userId).get().await()
-                }
-            } catch (e: Exception) {
+            val cacheDoc = try {
+                firestore.collection("patient_details").document(userId).get(com.google.firebase.firestore.Source.CACHE).await()
+            } catch (cacheEx: Exception) {
                 null
             }
 
-            val finalDoc = doc ?: try {
-                firestore.collection("patient_details").document(userId).get(com.google.firebase.firestore.Source.CACHE).await()
-            } catch (cacheEx: Exception) {
+            val finalDoc = cacheDoc ?: try {
+                kotlinx.coroutines.withTimeoutOrNull(1500) {
+                    firestore.collection("patient_details").document(userId).get().await()
+                }
+            } catch (e: Exception) {
                 null
             }
 
@@ -380,17 +380,17 @@ object FirebaseClient {
             }
         }
         return try {
-            val doc = try {
-                kotlinx.coroutines.withTimeoutOrNull(2000) {
-                    firestore.collection("users").document(userId).get().await()
-                }
-            } catch (e: Exception) {
+            val cacheDoc = try {
+                firestore.collection("users").document(userId).get(com.google.firebase.firestore.Source.CACHE).await()
+            } catch (cacheEx: Exception) {
                 null
             }
 
-            val finalDoc = doc ?: try {
-                firestore.collection("users").document(userId).get(com.google.firebase.firestore.Source.CACHE).await()
-            } catch (cacheEx: Exception) {
+            val finalDoc = cacheDoc ?: try {
+                kotlinx.coroutines.withTimeoutOrNull(1500) {
+                    firestore.collection("users").document(userId).get().await()
+                }
+            } catch (e: Exception) {
                 null
             }
 
@@ -947,8 +947,19 @@ object FirebaseClient {
             }
         }
         return try {
-            val query = try {
-                kotlinx.coroutines.withTimeoutOrNull(2000) {
+            val cacheQuery = try {
+                firestore.collection("reports")
+                    .whereEqualTo("user_id", userId)
+                    .orderBy("uploaded_at", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    .limit(1)
+                    .get(com.google.firebase.firestore.Source.CACHE)
+                    .await()
+            } catch (cacheEx: Exception) {
+                null
+            }
+
+            val finalQuery = cacheQuery ?: try {
+                kotlinx.coroutines.withTimeoutOrNull(1500) {
                     firestore.collection("reports")
                         .whereEqualTo("user_id", userId)
                         .orderBy("uploaded_at", com.google.firebase.firestore.Query.Direction.DESCENDING)
@@ -957,17 +968,6 @@ object FirebaseClient {
                         .await()
                 }
             } catch (e: Exception) {
-                null
-            }
-
-            val finalQuery = query ?: try {
-                firestore.collection("reports")
-                    .whereEqualTo("user_id", userId)
-                    .orderBy("uploaded_at", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                    .limit(1)
-                    .get(com.google.firebase.firestore.Source.CACHE)
-                    .await()
-            } catch (cacheEx: Exception) {
                 null
             }
 
