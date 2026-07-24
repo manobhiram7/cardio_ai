@@ -269,7 +269,7 @@ object FirebaseClient {
         }
         return try {
             val doc = try {
-                kotlinx.coroutines.withTimeoutOrNull(15000) {
+                kotlinx.coroutines.withTimeoutOrNull(2000) {
                     firestore.collection("patient_details").document(userId).get().await()
                 }
             } catch (e: Exception) {
@@ -381,7 +381,7 @@ object FirebaseClient {
         }
         return try {
             val doc = try {
-                kotlinx.coroutines.withTimeoutOrNull(15000) {
+                kotlinx.coroutines.withTimeoutOrNull(2000) {
                     firestore.collection("users").document(userId).get().await()
                 }
             } catch (e: Exception) {
@@ -948,7 +948,7 @@ object FirebaseClient {
         }
         return try {
             val query = try {
-                kotlinx.coroutines.withTimeoutOrNull(15000) {
+                kotlinx.coroutines.withTimeoutOrNull(2000) {
                     firestore.collection("reports")
                         .whereEqualTo("user_id", userId)
                         .orderBy("uploaded_at", com.google.firebase.firestore.Query.Direction.DESCENDING)
