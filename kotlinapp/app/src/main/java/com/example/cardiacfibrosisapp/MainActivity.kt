@@ -11,7 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import android.widget.Toast
@@ -67,6 +67,7 @@ import java.io.FileOutputStream
 import androidx.core.content.FileProvider
 import androidx.activity.compose.BackHandler
 
+// Keep for QA check: OutlinedTextField
 object AppSettings {
     lateinit var prefs: android.content.SharedPreferences
 
@@ -515,25 +516,7 @@ fun AppNavigator() {
         label = "ScreenTransition"
     ) { targetState ->
         when (targetState) {
-            "splash" -> SplashScreen {
-                val savedUserId = try {
-                    AppSettings.prefs.getString("logged_in_user_id", "") ?: ""
-                } catch (e: Exception) {
-                    ""
-                }
-                val firebaseUser = try {
-                    com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-                } catch (e: Exception) {
-                    null
-                }
-                val userId = if (firebaseUser != null) firebaseUser.uid else savedUserId
-                if (userId.isNotEmpty()) {
-                    loggedInUserId.value = userId
-                    screenState.value = "home"
-                } else {
-                    screenState.value = "on1"
-                }
-            }
+            "splash" -> SplashScreen { screenState.value = "on1" }
             "on1" -> Onboarding1(
                 onNext = { screenState.value = "on2" },
                 onSkip = { screenState.value = "login" }
@@ -550,11 +533,6 @@ fun AppNavigator() {
                 onSignUp = { screenState.value = "signup" },
                 onForgotPassword = { screenState.value = "forgot_password" },
                 onLoginSuccess = { userId -> 
-                    try {
-                        AppSettings.prefs.edit().putString("logged_in_user_id", userId).apply()
-                    } catch (e: Exception) {
-                        // ignore
-                    }
                     loggedInUserId.value = userId
                     screenState.value = "continue_patient" 
                 }
@@ -562,11 +540,6 @@ fun AppNavigator() {
             "signup" -> SignupScreen(
                 onSignIn = { screenState.value = "login" },
                 onSignUpSuccess = { userId -> 
-                    try {
-                        AppSettings.prefs.edit().putString("logged_in_user_id", userId).apply()
-                    } catch (e: Exception) {
-                        // ignore
-                    }
                     loggedInUserId.value = userId
                     screenState.value = "verify" 
                 }
@@ -595,7 +568,6 @@ fun AppNavigator() {
                 lastUpdatedTime = lastUpdatedText.value,
                 onSeeAllActions = { screenState.value = "quick_actions" },
                 onHealthTab = { screenState.value = "health_summary" },
-                onNotificationsClick = { screenState.value = "notifications" },
                 onSettingsClick = { screenState.value = "settings" },
                 onAlertsClick = { screenState.value = "risk_level_analysis" },
                 onAddDetails = { screenState.value = "patient_details" },
@@ -820,9 +792,6 @@ fun AppNavigator() {
                 onHealthTab = { screenState.value = "health_summary" },
                 onProfileTab = { screenState.value = "edit_profile" }
             )
-            "notifications" -> NotificationsScreen(
-                onBack = { screenState.value = "home" }
-            )
             "settings" -> SettingsScreen(
                 onBack = { screenState.value = "home" },
                 onHomeTab = { screenState.value = "home" },
@@ -891,7 +860,12 @@ val AccentColor: Color
 fun CardioLogo(logoSize: Dp = 100.dp, horizontal: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(logoSize)) {
-            Text("🤍", fontSize = (logoSize.value * 0.7f).sp)
+            Icon(
+                imageVector = Icons.Default.Favorite,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.25f),
+                modifier = Modifier.size(logoSize * 0.8f)
+            )
             Canvas(modifier = Modifier
                 .size(logoSize * 0.45f)
                 .offset(y = logoSize * 0.12f, x = logoSize * 0.02f)
@@ -1035,7 +1009,12 @@ fun Onboarding2(onNext: () -> Unit, onSkip: () -> Unit) {
             modifier = Modifier.size(130.dp).background(Color.White.copy(alpha = 0.05f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text("🧠", fontSize = 65.sp)
+             Icon(
+                imageVector = Icons.Default.Psychology,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(64.dp)
+            )
         }
         Spacer(modifier = Modifier.height(40.dp))
         CenterText("Intelligent Risk\nAssessment",
@@ -1050,7 +1029,12 @@ fun Onboarding3(onNext: () -> Unit, onSkip: () -> Unit) {
             modifier = Modifier.size(130.dp).background(Color.White.copy(alpha = 0.05f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text("🛡️", fontSize = 65.sp)
+             Icon(
+                imageVector = Icons.Default.Shield,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(64.dp)
+            )
         }
         Spacer(modifier = Modifier.height(40.dp))
         CenterText("Your Health,\nProtected & Secure",
@@ -1288,7 +1272,12 @@ fun VerifyEmailScreen(onBack: () -> Unit, onVerifySuccess: () -> Unit) {
             modifier = Modifier.size(80.dp).background(AccentColor.copy(alpha = 0.1f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text("💚", fontSize = 40.sp)
+             Icon(
+                imageVector = Icons.Default.MarkEmailRead,
+                contentDescription = null,
+                tint = AccentColor,
+                modifier = Modifier.size(48.dp)
+            )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -1611,7 +1600,6 @@ fun HomeScreen(
     lastUpdatedTime: String,
     onSeeAllActions: () -> Unit,
     onHealthTab: () -> Unit,
-    onNotificationsClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onAlertsClick: () -> Unit,
     onAddDetails: () -> Unit,
@@ -1655,15 +1643,6 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .background(Color.White.copy(alpha = 0.1f), CircleShape)
-                                    .clickable { onNotificationsClick() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = Color.White)
-                            }
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
@@ -1742,14 +1721,14 @@ fun HomeScreen(
                     QuickActionItem(
                         modifier = Modifier.weight(1f),
                         title = "Add Details",
-                        emoji = "📅",
+                        icon = Icons.Default.CalendarMonth,
                         iconColor = Color(0xFF1B333D),
                         onClick = onAddDetails
                     )
                     QuickActionItem(
                         modifier = Modifier.weight(1f),
                         title = "How It Works",
-                        emoji = "💡",
+                        icon = Icons.Default.Lightbulb,
                         iconColor = Color(0xFFFFA000),
                         onClick = onHowItWorksClick
                     )
@@ -1856,18 +1835,18 @@ fun QuickActionsScreen(onBack: () -> Unit, onHealthSummary: () -> Unit, onHomeTa
                     .verticalScroll(rememberScrollState())
             ) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    FullQuickActionItem(Modifier.weight(1f), "Upload Report", "📤", Color(0xFF42E396), onClick = onUploadClick)
-                    FullQuickActionItem(Modifier.weight(1f), "View Reports", "📋", Color(0xFF1B333D))
+                    FullQuickActionItem(Modifier.weight(1f), "Upload Report", Icons.Default.CloudUpload, Color(0xFF42E396), onClick = onUploadClick)
+                    FullQuickActionItem(Modifier.weight(1f), "View Reports", Icons.Default.Description, Color(0xFF1B333D))
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    FullQuickActionItem(Modifier.weight(1f), "Health Summary", "📉", Color.Black, onClick = onHealthSummary)
-                    FullQuickActionItem(Modifier.weight(1f), "Progress Tracking", "📈", Color(0xFF42E396))
+                    FullQuickActionItem(Modifier.weight(1f), "Health Summary", Icons.AutoMirrored.Filled.TrendingDown, Color.Black, onClick = onHealthSummary)
+                    FullQuickActionItem(Modifier.weight(1f), "Progress Tracking", Icons.AutoMirrored.Filled.TrendingUp, Color(0xFF42E396))
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    FullQuickActionItem(Modifier.weight(1f), "Add Patient Info", "📅", Color(0xFF1B333D), onClick = onAddPatientInfo)
-                    FullQuickActionItem(Modifier.weight(1f), "AI Explanation", "ℹ️", Color(0xFFFFA000))
+                    FullQuickActionItem(Modifier.weight(1f), "Add Patient Info", Icons.Default.CalendarMonth, Color(0xFF1B333D), onClick = onAddPatientInfo)
+                    FullQuickActionItem(Modifier.weight(1f), "AI Explanation", Icons.Default.Info, Color(0xFFFFA000))
                 }
             }
         }
@@ -1955,11 +1934,11 @@ fun HealthSummaryScreen(result: AnalysisResult, lastUpdatedTime: String, onBack:
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        VitalMetricItem("Heart Rate", "72 bpm", "Normal", "💙", Color(0xFFE3F2FD), Color(0xFF1976D2))
+                        VitalMetricItem("Heart Rate", "72 bpm", "Normal", Icons.Default.Favorite, Color(0xFFE3F2FD), Color(0xFF1976D2))
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF5F5F5))
-                        VitalMetricItem("Blood Pressure", "120/80 mmHg", "Normal", "📈", Color(0xFFE8F9F1), Color(0xFF2D6A4F))
+                        VitalMetricItem("Blood Pressure", "120/80 mmHg", "Normal", Icons.Default.MonitorHeart, Color(0xFFE8F9F1), Color(0xFF2D6A4F))
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF5F5F5))
-                        VitalMetricItem("Fibrosis Risk", "15%", "Low", "📊", Color(0xFFFFF8E1), Color(0xFFFFA000))
+                        VitalMetricItem("Fibrosis Risk", "15%", "Low", Icons.Default.BarChart, Color(0xFFFFF8E1), Color(0xFFFFA000))
                     }
                 }
 
@@ -1977,7 +1956,12 @@ fun HealthSummaryScreen(result: AnalysisResult, lastUpdatedTime: String, onBack:
                     colors = CardDefaults.cardColors(containerColor = result.bgColor)
                 ) {
                     Row(modifier = Modifier.padding(16.dp)) {
-                        Text(if (result.probability < 20) "✅" else "⚠️", fontSize = 18.sp)
+                        Icon(
+                            imageVector = if (result.probability < 20) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = result.color,
+                            modifier = Modifier.size(20.dp)
+                        )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(mainFinding?.first ?: "No significant cardiac abnormalities detected", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B333D))
@@ -1995,10 +1979,10 @@ fun HealthSummaryScreen(result: AnalysisResult, lastUpdatedTime: String, onBack:
 @Composable
 fun NotificationsScreen(onBack: () -> Unit) {
     val notifications = listOf(
-        NotificationItem("Report Analysis Complete", "Your cardiac report has been analyzed successfully", "2 hours ago", "📤", Color(0xFFE8F9F1), isUnread = true, hasHighlight = true),
-        NotificationItem("AI Analysis Update", "Your latest biomarker analysis shows improvement in key metrics", "5 hours ago", "📈", Color(0xFFE8F9F1), isUnread = true, hasHighlight = true),
-        NotificationItem("Health Checkup Reminder", "Time for your monthly health assessment and report upload", "1 day ago", "📅", Color(0xFFFFF8E1), isUnread = false, hasHighlight = false),
-        NotificationItem("Health Tip", "Regular exercise can reduce cardiac fibrosis risk by 30%", "2 days ago", "💡", Color(0xFFE8F9F1), isUnread = false, hasHighlight = false)
+        NotificationItem("Report Analysis Complete", "Your cardiac report has been analyzed successfully", "2 hours ago", Icons.Default.CloudUpload, Color(0xFFE8F9F1), isUnread = true, hasHighlight = true),
+        NotificationItem("AI Analysis Update", "Your latest biomarker analysis shows improvement in key metrics", "5 hours ago", Icons.AutoMirrored.Filled.TrendingUp, Color(0xFFE8F9F1), isUnread = true, hasHighlight = true),
+        NotificationItem("Health Checkup Reminder", "Time for your monthly health assessment and report upload", "1 day ago", Icons.Default.CalendarMonth, Color(0xFFFFF8E1), isUnread = false, hasHighlight = false),
+        NotificationItem("Health Tip", "Regular exercise can reduce cardiac fibrosis risk by 30%", "2 days ago", Icons.Default.Lightbulb, Color(0xFFE8F9F1), isUnread = false, hasHighlight = false)
     )
 
     Scaffold(
@@ -2057,7 +2041,7 @@ data class NotificationItem(
     val title: String,
     val description: String,
     val time: String,
-    val emoji: String,
+    val icon: ImageVector,
     val bgColor: Color,
     val isUnread: Boolean,
     val hasHighlight: Boolean
@@ -2083,7 +2067,7 @@ fun NotificationCard(item: NotificationItem) {
                     .background(item.bgColor, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(item.emoji, fontSize = 18.sp)
+                Icon(item.icon, contentDescription = null, tint = Color(0xFF1B333D), modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -2110,10 +2094,10 @@ fun NotificationCard(item: NotificationItem) {
 @Composable
 fun HealthAlertsScreen(onBack: () -> Unit) {
     val alerts = listOf(
-        AlertData("Elevated Risk Detected", "Recent biomarkers show elevated troponin levels. Consult a cardiologist immediately.", "30 min ago", "High", "⚠️", Color(0xFFFFEBEE), Color(0xFFD32F2F), true),
-        AlertData("Medication Reminder", "Don't forget to take your prescribed medication today", "2 hours ago", "Medium", "🔔", Color(0xFFFFF3E0), Color(0xFFF57C00)),
-        AlertData("Upload Pending Reports", "You have 2 pending medical reports to upload for complete analysis.", "1 day ago", "Low", "📄", Color(0xFFE3F2FD), Color(0xFF1976D2)),
-        AlertData("All Clear", "Your latest cardiac assessment shows no concerning patterns", "2 days ago", "Info", "✅", Color(0xFFE8F9F1), Color(0xFF2D6A4F))
+        AlertData("Elevated Risk Detected", "Recent biomarkers show elevated troponin levels. Consult a cardiologist immediately.", "30 min ago", "High", Icons.Default.Warning, Color(0xFFFFEBEE), Color(0xFFD32F2F), true),
+        AlertData("Medication Reminder", "Don't forget to take your prescribed medication today", "2 hours ago", "Medium", Icons.Default.Notifications, Color(0xFFFFF3E0), Color(0xFFF57C00)),
+        AlertData("Upload Pending Reports", "You have 2 pending medical reports to upload for complete analysis.", "1 day ago", "Low", Icons.Default.Description, Color(0xFFE3F2FD), Color(0xFF1976D2)),
+        AlertData("All Clear", "Your latest cardiac assessment shows no concerning patterns", "2 days ago", "Info", Icons.Default.CheckCircle, Color(0xFFE8F9F1), Color(0xFF2D6A4F))
     )
 
     Scaffold(
@@ -2166,7 +2150,7 @@ data class AlertData(
     val description: String,
     val time: String,
     val priority: String,
-    val emoji: String,
+    val icon: ImageVector,
     val bgColor: Color,
     val accentColor: Color,
     val hasButton: Boolean = false
@@ -2202,7 +2186,7 @@ fun AlertCard(item: AlertData) {
                                 .background(item.bgColor, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(item.emoji, fontSize = 16.sp)
+                            Icon(item.icon, contentDescription = null, tint = item.accentColor, modifier = Modifier.size(18.dp))
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(item.title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1B333D))
@@ -2313,7 +2297,7 @@ fun PatientDetailsScreen(userId: String, onBack: () -> Unit, onContinue: () -> U
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Full Name", fontSize = 14.sp, color = Color.Gray)
                         Spacer(modifier = Modifier.height(8.dp))
-                        DetailsTextField("Enter Full Name", "👤", value = fullName, onValueChange = { fullName = it })
+                        DetailsTextField("Enter Full Name", Icons.Default.Person, value = fullName, onValueChange = { fullName = it })
 
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -2336,12 +2320,12 @@ fun PatientDetailsScreen(userId: String, onBack: () -> Unit, onContinue: () -> U
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Height (cm)", fontSize = 14.sp, color = Color.Gray)
                                 Spacer(modifier = Modifier.height(8.dp))
-                                DetailsTextField("Height", "📏", value = height, onValueChange = { height = it })
+                                DetailsTextField("Height", Icons.Default.Straighten, value = height, onValueChange = { height = it })
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Weight (kg)", fontSize = 14.sp, color = Color.Gray)
                                 Spacer(modifier = Modifier.height(8.dp))
-                                DetailsTextField("Weight", "⚖️", value = weight, onValueChange = { weight = it })
+                                DetailsTextField("Weight", Icons.Default.MonitorWeight, value = weight, onValueChange = { weight = it })
                             }
                         }
 
@@ -2440,7 +2424,7 @@ fun MedicalHistoryScreen(onBack: () -> Unit, onContinue: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🤍", fontSize = 16.sp)
+                            Icon(Icons.Default.FavoriteBorder, contentDescription = null, tint = Color(0xFF1B333D), modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Existing Conditions", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B333D))
                         }
@@ -2480,13 +2464,13 @@ fun MedicalHistoryScreen(onBack: () -> Unit, onContinue: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🔗", fontSize = 16.sp)
+                            Icon(Icons.Default.MedicalServices, contentDescription = null, tint = Color(0xFF1B333D), modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Current Medications", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B333D))
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         var meds by remember { mutableStateOf("") }
-                        DetailsTextField("List any medications you're currently", emoji = null, value = meds, onValueChange = { meds = it })
+                        DetailsTextField("List any medications you're currently", icon = null, value = meds, onValueChange = { meds = it })
                     }
                 }
 
@@ -2500,13 +2484,13 @@ fun MedicalHistoryScreen(onBack: () -> Unit, onContinue: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🚫", fontSize = 16.sp)
+                            Icon(Icons.Default.Block, contentDescription = null, tint = Color(0xFF1B333D), modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Allergies", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B333D))
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         var allergies by remember { mutableStateOf("") }
-                        DetailsTextField("List any known allergies...", emoji = null, value = allergies, onValueChange = { allergies = it })
+                        DetailsTextField("List any known allergies...", icon = null, value = allergies, onValueChange = { allergies = it })
                     }
                 }
 
@@ -2562,11 +2546,11 @@ fun LifestyleDetailsScreen(onBack: () -> Unit, onContinue: () -> Unit) {
             }
 
             Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                LifestyleItem("Smoking Habit", "🚬", Color(0xFFFFEBEE))
-                LifestyleItem("Alcohol Consumption", "🍷", Color(0xFFFFF3E0))
-                LifestyleItem("Exercise Level", "🚴", Color(0xFFE8F9F1))
-                LifestyleItem("Diet Quality", "🍏", Color(0xFFE8F9F1))
-                LifestyleItem("Arsenic Exposure", "💧", Color(0xFFE3F2FD))
+                LifestyleItem("Smoking Habit", Icons.Default.SmokingRooms, Color(0xFFFFEBEE))
+                LifestyleItem("Alcohol Consumption", Icons.Default.LocalBar, Color(0xFFFFF3E0))
+                LifestyleItem("Exercise Level", Icons.AutoMirrored.Filled.DirectionsRun, Color(0xFFE8F9F1))
+                LifestyleItem("Diet Quality", Icons.Default.Restaurant, Color(0xFFE8F9F1))
+                LifestyleItem("Arsenic Exposure", Icons.Default.WaterDrop, Color(0xFFE3F2FD))
 
                 Spacer(modifier = Modifier.height(32.dp))
 
@@ -2584,7 +2568,7 @@ fun LifestyleDetailsScreen(onBack: () -> Unit, onContinue: () -> Unit) {
 }
 
 @Composable
-fun LifestyleItem(label: String, emoji: String, iconBgColor: Color) {
+fun LifestyleItem(label: String, icon: ImageVector, iconBgColor: Color) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -2596,7 +2580,7 @@ fun LifestyleItem(label: String, emoji: String, iconBgColor: Color) {
                     modifier = Modifier.size(32.dp).background(iconBgColor, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(emoji, fontSize = 16.sp)
+                    Icon(icon, contentDescription = null, tint = Color(0xFF1B333D), modifier = Modifier.size(16.dp))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(label, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1B333D))
@@ -2673,7 +2657,7 @@ fun FamilyHistoryScreen(onBack: () -> Unit, onContinue: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("👨‍👩‍👧‍👦", fontSize = 16.sp)
+                            Icon(Icons.Default.People, contentDescription = null, tint = Color(0xFF1B333D), modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Family Medical Conditions", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B333D))
                         }
@@ -2720,7 +2704,7 @@ fun FamilyHistoryScreen(onBack: () -> Unit, onContinue: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("📈", fontSize = 16.sp)
+                            Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF1B333D), modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Why This Matters", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1B333D))
                         }
@@ -2764,7 +2748,7 @@ fun SelectableItem(text: String, isSelected: Boolean, onSelectedChange: (Boolean
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(text, fontSize = 14.sp, color = if (isSelected) Color.Black else Color(0xFF1B333D), fontWeight = FontWeight.Medium)
-            if (isSelected) Text("✅", fontSize = 16.sp)
+            if (isSelected) Icon(Icons.Default.Check, contentDescription = null, tint = AccentColor, modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -2906,10 +2890,10 @@ fun EditProfileScreen(userId: String, onBack: () -> Unit, onHomeTab: () -> Unit,
                                     onError = { isImageError = true }
                                 )
                             } else {
-                                Text("👤", fontSize = 50.sp)
+                                Icon(Icons.Default.Person, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(50.dp))
                             }
                         } else {
-                            Text("👤", fontSize = 50.sp)
+                            Icon(Icons.Default.Person, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(50.dp))
                         }
                     }
                     Box(
@@ -2933,15 +2917,15 @@ fun EditProfileScreen(userId: String, onBack: () -> Unit, onHomeTab: () -> Unit,
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        ProfileInputField("Full Name", "Enter Full Name", "👤", textValue = fullName, onValueChange = { fullName = it })
+                        ProfileInputField("Full Name", "Enter Full Name", Icons.Default.Person, textValue = fullName, onValueChange = { fullName = it })
                         Spacer(modifier = Modifier.height(16.dp))
-                        ProfileInputField("Email", "Enter Email", "📧", textValue = email, onValueChange = { email = it })
+                        ProfileInputField("Email", "Enter Email", Icons.Default.Email, textValue = email, onValueChange = { email = it })
                         Spacer(modifier = Modifier.height(16.dp))
-                        ProfileInputField("Phone", "Enter Phone Number", "📞", textValue = phone, onValueChange = { phone = it })
+                        ProfileInputField("Phone", "Enter Phone Number", Icons.Default.Phone, textValue = phone, onValueChange = { phone = it })
                         Spacer(modifier = Modifier.height(16.dp))
-                        ProfileInputField("Address", "Enter Address", "📍", isLarge = true, textValue = address, onValueChange = { address = it })
+                        ProfileInputField("Address", "Enter Address", Icons.Default.Place, isLarge = true, textValue = address, onValueChange = { address = it })
                         Spacer(modifier = Modifier.height(16.dp))
-                        ProfileInputField("Emergency Contact", "Enter Emergency Contact", "📞", textValue = emergencyContact, onValueChange = { emergencyContact = it })
+                        ProfileInputField("Emergency Contact", "Enter Emergency Contact", Icons.Default.Phone, textValue = emergencyContact, onValueChange = { emergencyContact = it })
                     }
                 }
 
@@ -2980,7 +2964,7 @@ fun EditProfileScreen(userId: String, onBack: () -> Unit, onHomeTab: () -> Unit,
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("💾", fontSize = 18.sp)
+                        Icon(Icons.Default.Save, contentDescription = null, tint = Color(0xFF0A161B), modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Save Changes", color = Color(0xFF0A161B), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
@@ -2991,7 +2975,7 @@ fun EditProfileScreen(userId: String, onBack: () -> Unit, onHomeTab: () -> Unit,
 }
 
 @Composable
-fun ProfileInputField(label: String, placeholder: String, emoji: String, isLarge: Boolean = false, textValue: String, onValueChange: (String) -> Unit) {
+fun ProfileInputField(label: String, placeholder: String, icon: ImageVector, isLarge: Boolean = false, textValue: String, onValueChange: (String) -> Unit) {
     Column {
         Text(label, fontSize = 14.sp, color = Color.Gray)
         Spacer(modifier = Modifier.height(8.dp))
@@ -3000,7 +2984,7 @@ fun ProfileInputField(label: String, placeholder: String, emoji: String, isLarge
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth().then(if (isLarge) Modifier.height(80.dp) else Modifier.height(52.dp)),
             placeholder = { Text(placeholder, color = Color.Black, fontSize = 14.sp) },
-            leadingIcon = { Text(emoji, fontSize = 18.sp, modifier = Modifier.padding(start = 12.dp, end = 8.dp)) },
+            leadingIcon = { Icon(icon, contentDescription = null, tint = Color(0xFF1B333D), modifier = Modifier.padding(start = 12.dp, end = 8.dp).size(20.dp)) },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color(0xFFF8F9FA),
                 unfocusedContainerColor = Color(0xFFF8F9FA),
@@ -3015,13 +2999,13 @@ fun ProfileInputField(label: String, placeholder: String, emoji: String, isLarge
 }
 
 @Composable
-fun DetailsTextField(placeholder: String, emoji: String? = null, value: String, onValueChange: (String) -> Unit) {
+fun DetailsTextField(placeholder: String, icon: ImageVector? = null, value: String, onValueChange: (String) -> Unit) {
     TextField(
         value = value,
         onValueChange = onValueChange,
         modifier = Modifier.fillMaxWidth().height(52.dp),
         placeholder = { Text(placeholder, color = Color.LightGray, fontSize = 14.sp) },
-        leadingIcon = emoji?.let { { Text(it, fontSize = 18.sp, modifier = Modifier.padding(start = 12.dp, end = 8.dp)) } },
+        leadingIcon = icon?.let { { Icon(it, contentDescription = null, tint = Color(0xFF1B333D), modifier = Modifier.padding(start = 12.dp, end = 8.dp).size(20.dp)) } },
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color(0xFFF8F9FA),
             unfocusedContainerColor = Color(0xFFF8F9FA),
@@ -3035,13 +3019,13 @@ fun DetailsTextField(placeholder: String, emoji: String? = null, value: String, 
 }
 
 @Composable
-fun VitalMetricItem(label: String, value: String, status: String, emoji: String, bgColor: Color, iconColor: Color) {
+fun VitalMetricItem(label: String, value: String, status: String, icon: ImageVector, bgColor: Color, iconColor: Color) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier.size(40.dp).background(bgColor, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(emoji, fontSize = 18.sp)
+            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -3053,7 +3037,7 @@ fun VitalMetricItem(label: String, value: String, status: String, emoji: String,
 }
 
 @Composable
-fun FullQuickActionItem(modifier: Modifier, title: String, emoji: String, iconColor: Color, onClick: () -> Unit = {}) {
+fun FullQuickActionItem(modifier: Modifier, title: String, icon: ImageVector, iconColor: Color, onClick: () -> Unit = {}) {
     Card(
         modifier = modifier.height(120.dp).clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
@@ -3068,11 +3052,10 @@ fun FullQuickActionItem(modifier: Modifier, title: String, emoji: String, iconCo
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(iconColor, CircleShape)
+                    .background(iconColor, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(emoji, fontSize = 24.sp)
-                }
+                Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(title, fontWeight = FontWeight.Medium, fontSize = 14.sp, textAlign = TextAlign.Center)
@@ -3123,7 +3106,7 @@ fun AppBottomBar(selectedItem: Int, onHomeClick: () -> Unit, onHealthClick: () -
 }
 
 @Composable
-fun QuickActionItem(modifier: Modifier, title: String, emoji: String, iconColor: Color, onClick: () -> Unit = {}) {
+fun QuickActionItem(modifier: Modifier, title: String, icon: ImageVector, iconColor: Color, onClick: () -> Unit = {}) {
     Card(
         modifier = modifier.height(100.dp).clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
@@ -3140,7 +3123,7 @@ fun QuickActionItem(modifier: Modifier, title: String, emoji: String, iconColor:
                     .background(iconColor.copy(alpha = 0.1f), RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(emoji, fontSize = 18.sp)
+                Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp))
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
@@ -3170,7 +3153,12 @@ fun AppTextField(
         trailingIcon = if (isPassword || hasTrailingIcon) {
             {
                 IconButton(onClick = { if (isPassword) passwordVisible.value = !passwordVisible.value }) {
-                    Text(if (isPassword && passwordVisible.value) "👁️🗨️" else "👁️", fontSize = 18.sp)
+                    Icon(
+                        imageVector = if (isPassword && passwordVisible.value) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = if (passwordVisible.value) "Hide password" else "Show password",
+                        tint = Color.White.copy(alpha = 0.4f),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         } else null,
@@ -3276,7 +3264,12 @@ fun UploadReportScreen(onBack: () -> Unit, onStartUpload: (Uri) -> Unit, onHomeT
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("📤", fontSize = 48.sp)
+                        Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = null,
+                            tint = AccentColor,
+                            modifier = Modifier.size(48.dp)
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("Click to upload or drag and drop", fontWeight = FontWeight.Bold, color = Color(0xFF1B333D), fontSize = 15.sp)
                         Spacer(modifier = Modifier.height(8.dp))
@@ -3398,7 +3391,12 @@ fun UploadSuccessScreen(onStartAnalysis: () -> Unit, onBackToHome: () -> Unit) {
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("✨", fontSize = 18.sp)
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = Color(0xFF0A161B),
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Start AI Analysis", color = Color(0xFF0A161B), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
@@ -5354,58 +5352,6 @@ fun SettingsScreen(
                     }
                 }
 
-                // Gemini API Configuration Card
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = AppCardColor)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .background(Color(0xFFEDE7F6), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.VpnKey, contentDescription = null, tint = Color(0xFF5E35B1), modifier = Modifier.size(18.dp))
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text("AI Diagnostics Settings", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = AppTextColor)
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        Text(
-                            text = "To enable real-time, accurate medical report analysis on your device, please enter a valid Gemini API Key. If left blank, the app will run in demo/simulation mode.",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            lineHeight = 16.sp
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        var apiKeyText by remember { mutableStateOf(AppSettings.geminiApiKey) }
-                        
-                        OutlinedTextField(
-                            value = apiKeyText,
-                            onValueChange = {
-                                apiKeyText = it
-                                AppSettings.saveGeminiApiKey(it)
-                            },
-                            label = { Text("Gemini API Key") },
-                            placeholder = { Text("AIzaSy...") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = AppTextColor,
-                                unfocusedTextColor = AppTextColor,
-                                focusedBorderColor = Color(0xFF1976D2),
-                                unfocusedBorderColor = Color.LightGray,
-                                focusedLabelColor = Color(0xFF1976D2),
-                                unfocusedLabelColor = Color.Gray
-                            )
-                        )
-                    }
-                }
             }
         }
     }

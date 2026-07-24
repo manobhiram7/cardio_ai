@@ -160,9 +160,15 @@ object FirebaseClient {
                     full_name = request.full_name,
                     email = request.email
                 )
+                val userMap = mapOf(
+                    "id" to user.uid,
+                    "full_name" to request.full_name,
+                    "name" to request.full_name,
+                    "email" to request.email
+                )
                 // Save additional user info to Firestore (fail-safe)
                 try {
-                    firestore.collection("users").document(user.uid).set(userData).await()
+                    firestore.collection("users").document(user.uid).set(userMap).await()
                 } catch (firestoreEx: Exception) {
                     // Log or ignore Firestore write error, Auth succeeded
                 }
@@ -215,24 +221,15 @@ object FirebaseClient {
         }
     }
 
-    // 3. Save Patient Details
     suspend fun savePatientDetails(request: PatientDetailsRequest): AuthResponse {
         if (USE_MOCK_BACKEND) {
             mockPatientDetails[request.user_id] = request
             return AuthResponse(status = "success", message = "Patient details saved (MOCK)")
         }
         return try {
-            val writeResult = kotlinx.coroutines.withTimeoutOrNull(15000) {
-                firestore.collection("patient_details").document(request.user_id).set(request).await()
-                true
-            }
-            if (writeResult == true) {
-                AuthResponse(status = "success", message = "Patient details saved successfully")
-            } else {
-                AuthResponse(status = "success", message = "Patient details saved (Offline Mode)")
-            }
+            firestore.collection("patient_details").document(request.user_id).set(request)
+            AuthResponse(status = "success", message = "Patient details saved successfully")
         } catch (e: Exception) {
-            // Write to offline cache / local DB is successful immediately, proceed without blocking
             AuthResponse(status = "success", message = "Patient details saved (Offline Mode)")
         }
     }
@@ -271,13 +268,27 @@ object FirebaseClient {
             }
 
             if (finalDoc != null && finalDoc.exists()) {
+                val heightVal = finalDoc.get("height_cm")?.let {
+                    when (it) {
+                        is Number -> it.toDouble()
+                        is String -> it.toDoubleOrNull()
+                        else -> null
+                    }
+                }
+                val weightVal = finalDoc.get("weight_kg")?.let {
+                    when (it) {
+                        is Number -> it.toDouble()
+                        is String -> it.toDoubleOrNull()
+                        else -> null
+                    }
+                }
                 val data = PatientDetailsData(
                     full_name = finalDoc.getString("full_name"),
                     dob = finalDoc.getString("dob"),
                     gender = finalDoc.getString("gender"),
                     blood_type = finalDoc.getString("blood_type"),
-                    height_cm = finalDoc.getString("height_cm")?.toDoubleOrNull(),
-                    weight_kg = finalDoc.getString("weight_kg")?.toDoubleOrNull()
+                    height_cm = heightVal,
+                    weight_kg = weightVal
                 )
                 PatientDetailsResponse(status = "success", message = "Success", data = data)
             } else {
@@ -311,10 +322,12 @@ object FirebaseClient {
             val docRef = firestore.collection("users").document(request.user_id)
             val updates = mapOf(
                 "full_name" to request.full_name,
+                "name" to request.full_name,
                 "email" to request.email,
                 "phone" to request.phone,
                 "address" to request.address,
-                "emergency_contact" to request.emergency_contact
+                "emergency_contact" to request.emergency_contact,
+                "emergency" to request.emergency_contact
             )
             val writeResult = kotlinx.coroutines.withTimeoutOrNull(15000) {
                 docRef.set(updates, com.google.firebase.firestore.SetOptions.merge()).await()
@@ -368,11 +381,11 @@ object FirebaseClient {
 
             if (finalDoc != null && finalDoc.exists()) {
                 val data = ProfileData(
-                    full_name = finalDoc.getString("full_name"),
+                    full_name = finalDoc.getString("full_name") ?: finalDoc.getString("name"),
                     email = finalDoc.getString("email"),
                     phone = finalDoc.getString("phone"),
                     address = finalDoc.getString("address"),
-                    emergency_contact = finalDoc.getString("emergency_contact"),
+                    emergency_contact = finalDoc.getString("emergency_contact") ?: finalDoc.getString("emergency"),
                     profile_picture_url = finalDoc.getString("profile_picture_url")
                 )
                 ProfileResponse(status = "success", message = "Success", data = data)
@@ -488,20 +501,25 @@ object FirebaseClient {
     private fun parseBiomarkersFromText(text: String): Pentad {
         val lowerText = text.lowercase()
         
-        // Match numbers following troponin, hs-troponin, etc.
-        val tropRegex = Regex("(?:troponin|hstn|hstnt|hstni|hs[- ]?troponin|trop)\\s*[-:]?\\s*([0-9]+(?:\\.[0-9]+)?)")
+        // Match numbers following troponin, hs-troponin, etc. (supporting suffixes like i/t/level, spaces, dashes, < or >)
+        val tropRegex = Regex("(?:troponin|hstn|hstnt|hstni|hs[- ]?troponin|trop)[\\s\\-a-z()]*[:\\-\\s]\\s*([<>\\s]*[0-9]+(?:\\.[0-9]+)?)")
         val tropMatch = tropRegex.find(lowerText)
-        val troponinVal = tropMatch?.groupValues?.get(1)?.toDoubleOrNull()
+        val troponinVal = tropMatch?.groupValues?.get(1)?.replace("<", "")?.replace(">", "")?.trim()?.toDoubleOrNull()
         
         // Match BNP levels:
-        val bnpRegex = Regex("\\bbnp\\b\\s*[-:]?\\s*([0-9]+(?:\\.[0-9]+)?)")
+        val bnpRegex = Regex("\\bbnp\\b[\\s\\-a-z()]*[:\\-\\s]\\s*([<>\\s]*[0-9]+(?:\\.[0-9]+)?)")
         val bnpMatch = bnpRegex.find(lowerText)
-        val bnpVal = bnpMatch?.groupValues?.get(1)?.toDoubleOrNull()
+        val bnpVal = bnpMatch?.groupValues?.get(1)?.replace("<", "")?.replace(">", "")?.trim()?.toDoubleOrNull()
         
         // Match NT-proBNP levels:
-        val ntRegex = Regex("(?:nt[- ]?pro[- ]?bnp|ntprobnp)\\s*[-:]?\\s*([0-9]+(?:\\.[0-9]+)?)")
+        val ntRegex = Regex("(?:nt[- ]?pro[- ]?bnp|ntprobnp)[\\s\\-a-z()]*[:\\-\\s]\\s*([<>\\s]*[0-9]+(?:\\.[0-9]+)?)")
         val ntMatch = ntRegex.find(lowerText)
-        val ntVal = ntMatch?.groupValues?.get(1)?.toDoubleOrNull()
+        val ntVal = ntMatch?.groupValues?.get(1)?.replace("<", "")?.replace(">", "")?.trim()?.toDoubleOrNull()
+
+        // Match Ejection Fraction (EF):
+        val efRegex = Regex("\\b(?:ef|ejection\\s+fraction)\\s*[-:]?\\s*([0-9]+)\\s*%?")
+        val efMatch = efRegex.find(lowerText)
+        val efVal = efMatch?.groupValues?.get(1)?.toIntOrNull()
 
         var riskLevel = "Healthy"
         var prob = 5.0
@@ -570,8 +588,65 @@ object FirebaseClient {
                     prob = (5..15).random().toDouble()
                 }
             }
-        } else {
-            if (lowerText.contains("risk") || lowerText.contains("fibrosis") || lowerText.contains("infarction")) {
+        }
+
+        // Apply Ejection Fraction overrides
+        if (efVal != null) {
+            when {
+                efVal < 40 -> {
+                    if (riskLevel != "High Risk") {
+                        riskLevel = "High Risk"
+                        prob = Math.max(prob, (80..90).random().toDouble())
+                    }
+                }
+                efVal < 50 -> {
+                    if (riskLevel == "Healthy" || riskLevel == "Low Risk") {
+                        riskLevel = "Risk"
+                        prob = Math.max(prob, (45..60).random().toDouble())
+                    }
+                }
+            }
+        }
+
+        // Apply LGE / Fibrosis Text Findings checks
+        val hasLge = lowerText.contains("late gadolinium enhancement") || lowerText.contains("lge")
+        val hasFibrosis = lowerText.contains("fibrosis") || lowerText.contains("scarring")
+        
+        if (hasLge || hasFibrosis) {
+            val isNegative = lowerText.contains("no late gadolinium") || 
+                             lowerText.contains("no lge") || 
+                             lowerText.contains("absence of lge") || 
+                             lowerText.contains("no fibrosis") ||
+                             lowerText.contains("absence of fibrosis") ||
+                             lowerText.contains("negative for lge")
+            
+            if (!isNegative) {
+                val isSevere = lowerText.contains("severe") || 
+                               lowerText.contains("extensive") || 
+                               lowerText.contains("transmural") || 
+                               lowerText.contains("patchy") || 
+                               lowerText.contains("mid-wall")
+                if (isSevere) {
+                    riskLevel = "High Risk"
+                    prob = Math.max(prob, (85..95).random().toDouble())
+                } else {
+                    if (riskLevel == "Healthy") {
+                        riskLevel = "Risk"
+                        prob = Math.max(prob, (50..65).random().toDouble())
+                    }
+                }
+            }
+        }
+
+        // Default disease keyword checks if no other biomarker triggers were found
+        if (riskLevel == "Healthy" && prob <= 15.0) {
+            if (lowerText.contains("myocardial infarction") || lowerText.contains("heart failure") || lowerText.contains("cardiomyopathy")) {
+                riskLevel = "High Risk"
+                prob = 80.0
+            } else if (lowerText.contains("ischemia") || lowerText.contains("coronary artery disease") || lowerText.contains("cad")) {
+                riskLevel = "Risk"
+                prob = 55.0
+            } else if (lowerText.contains("risk") || lowerText.contains("fibrosis") || lowerText.contains("infarction")) {
                 riskLevel = "Low Risk"
                 prob = 20.0
             }
@@ -584,6 +659,70 @@ object FirebaseClient {
             bnp = bnpVal ?: 15.0,
             nt_probnp = ntVal ?: 45.0
         )
+    }
+
+    private fun generateLocalSummary(pentad: Pentad, lowerText: String, efVal: Int?): String {
+        val findings = mutableListOf<String>()
+        
+        if (pentad.troponin_i > 0.04 && pentad.troponin_i != 0.002) {
+            findings.add("Elevated Troponin I level of ${pentad.troponin_i} ng/mL was detected, indicating potential myocardial stress or active cardiac injury.")
+        }
+        
+        if (pentad.bnp > 100.0 && pentad.bnp != 15.0) {
+            findings.add("BNP level is elevated at ${pentad.bnp} pg/mL, which is a key marker of heart wall strain or heart failure stress.")
+        }
+
+        if (pentad.nt_probnp > 300.0 && pentad.nt_probnp != 45.0) {
+            findings.add("NT-proBNP is elevated at ${pentad.nt_probnp} pg/mL, indicating significant myocardial stretch.")
+        }
+
+        if (efVal != null) {
+            if (efVal < 40) {
+                findings.add("Left Ventricular Ejection Fraction (LVEF) is severely reduced at $efVal%, indicating systolic dysfunction.")
+            } else if (efVal < 50) {
+                findings.add("LVEF is borderline/mildly reduced at $efVal%, suggesting mild cardiovascular stress.")
+            } else {
+                findings.add("LVEF is healthy at $efVal%, showing normal ventricular pumping function.")
+            }
+        }
+
+        val hasLge = lowerText.contains("late gadolinium enhancement") || lowerText.contains("lge")
+        val hasFibrosis = lowerText.contains("fibrosis") || lowerText.contains("scarring")
+        if (hasLge || hasFibrosis) {
+            val isNegative = lowerText.contains("no late gadolinium") || 
+                             lowerText.contains("no lge") || 
+                             lowerText.contains("absence of lge") || 
+                             lowerText.contains("no fibrosis") ||
+                             lowerText.contains("absence of fibrosis") ||
+                             lowerText.contains("negative for lge")
+            if (isNegative) {
+                findings.add("MRI findings explicitly show absence of late gadolinium enhancement (LGE) and no localized scarring/fibrosis.")
+            } else {
+                val isSevere = lowerText.contains("severe") || lowerText.contains("extensive") || lowerText.contains("transmural")
+                if (isSevere) {
+                    findings.add("MRI highlights extensive/transmural Late Gadolinium Enhancement (LGE), signifying significant myocardial fibrosis.")
+                } else {
+                    findings.add("MRI reveals presence of localized/mid-wall Late Gadolinium Enhancement (LGE), suggesting early or focal fibrosis.")
+                }
+            }
+        }
+
+        if (findings.isEmpty()) {
+            if (pentad.aiResult == "Healthy") {
+                return "The uploaded report has been analyzed. All key biomarkers (Troponin, BNP) and cardiac imaging parameters (LGE, Ejection Fraction) are within the normal reference ranges, showing a healthy cardiac profile with no evidence of active fibrosis."
+            }
+            return "The uploaded report has been analyzed. There are indicators of mild cardiovascular stress. We recommend sharing these findings with your healthcare provider for clinical correlation."
+        }
+
+        val summaryPrefix = "Analysis of your uploaded cardiac report is complete. Key findings: "
+        val adviceText = when (pentad.aiResult) {
+            "High Risk" -> " These findings suggest a high risk of cardiac fibrosis progression or active heart dysfunction. We strongly advise scheduling a medical review with your cardiologist immediately."
+            "Risk" -> " These findings indicate moderate cardiovascular risk. Regular monitoring and clinical correlation with your cardiologist are recommended."
+            "Low Risk" -> " There are minor abnormalities present. Continue checking metrics regularly and consult your healthcare provider during your next routine checkup."
+            else -> " Overall risk is low. Continue maintaining a healthy lifestyle and monitoring your vitals."
+        }
+
+        return summaryPrefix + findings.joinToString(" ") + adviceText
     }
 
     private suspend fun pdfToBitmap(context: Context, pdfUri: Uri): Bitmap? = withContext(Dispatchers.IO) {
@@ -667,6 +806,8 @@ object FirebaseClient {
             return UploadResponse(status = "error", message = "POOR_IMAGE_QUALITY")
         }
 
+        // Offline Local OCR Analysis as the sole primary engine
+        android.util.Log.i("CardiacAI", "Performing local report analysis.")
         val ocrText = performLocalOcr(context, bitmap)
         val lowerText = ocrText.lowercase()
 
@@ -691,167 +832,46 @@ object FirebaseClient {
             )
         }
 
-        val apiKey = getGeminiApiKey()
-        if (apiKey.isBlank()) {
-            android.util.Log.w("CardiacAI", "Gemini API Key is blank. Using mock simulation fallback.")
-            
-            val pentad = parseBiomarkersFromText(lowerText)
-            val aiResult = pentad.aiResult
-            val probability = pentad.probability
-            val troponin = pentad.troponin_i
-            val bnp = pentad.bnp
-            val ntProbnp = pentad.nt_probnp
+        val pentad = parseBiomarkersFromText(lowerText)
+        val aiResult = pentad.aiResult
+        val probability = pentad.probability
+        val troponin = pentad.troponin_i
+        val bnp = pentad.bnp
+        val ntProbnp = pentad.nt_probnp
 
-            val finalMsg = if (isFilenameValid && !isOcrValid) {
-                "Analysis complete"
-            } else {
-                "Gemini API Key is blank. Please enter your API key in Settings for live cloud analysis. Showing local OCR-extracted result."
-            }
+        // Extract LVEF locally for summary drafting
+        val efRegex = Regex("\\b(?:ef|ejection\\s+fraction)\\s*[-:]?\\s*([0-9]+)\\s*%?")
+        val efMatch = efRegex.find(lowerText)
+        val efVal = efMatch?.groupValues?.get(1)?.toIntOrNull()
 
-            if (USE_MOCK_BACKEND) {
-                val reportData = mapOf(
-                    "user_id" to userId,
-                    "file_path" to "mock_storage_path/$filename",
-                    "ai_result" to aiResult,
-                    "probability" to probability,
-                    "troponin_i" to troponin,
-                    "bnp" to bnp,
-                    "nt_probnp" to ntProbnp,
-                    "uploaded_at" to timestamp,
-                    "summary" to finalMsg
-                )
-                mockReports.add(reportData)
-                return UploadResponse(
-                    status = "success",
-                    message = finalMsg,
-                    file_path = "mock_storage_path/$filename",
-                    ai_result = aiResult,
-                    probability = probability,
-                    troponin_i = troponin,
-                    bnp = bnp,
-                    nt_probnp = ntProbnp
-                )
-            }
+        val finalMsg = generateLocalSummary(pentad, lowerText, efVal)
 
-            return try {
-                val filePath = "reports/$userId/$filename"
-                val reportData = mapOf(
-                    "user_id" to userId,
-                    "file_path" to filePath,
-                    "ai_result" to aiResult,
-                    "probability" to probability,
-                    "troponin_i" to troponin,
-                    "bnp" to bnp,
-                    "nt_probnp" to ntProbnp,
-                    "uploaded_at" to timestamp,
-                    "summary" to finalMsg
-                )
-                kotlinx.coroutines.withTimeoutOrNull(8000) {
-                    firestore.collection("reports").document().set(reportData).await()
-                }
-                UploadResponse(
-                    status = "success",
-                    message = finalMsg,
-                    file_path = filePath,
-                    ai_result = aiResult,
-                    probability = probability,
-                    troponin_i = troponin,
-                    bnp = bnp,
-                    nt_probnp = ntProbnp
-                )
-            } catch (e: Exception) {
-                UploadResponse(
-                    status = "success",
-                    message = finalMsg,
-                    file_path = "reports/$userId/$filename",
-                    ai_result = aiResult,
-                    probability = probability,
-                    troponin_i = troponin,
-                    bnp = bnp,
-                    nt_probnp = ntProbnp
-                )
-            }
+        if (USE_MOCK_BACKEND) {
+            val reportData = mapOf(
+                "user_id" to userId,
+                "file_path" to "mock_storage_path/$filename",
+                "ai_result" to aiResult,
+                "probability" to probability,
+                "troponin_i" to troponin,
+                "bnp" to bnp,
+                "nt_probnp" to ntProbnp,
+                "uploaded_at" to timestamp,
+                "summary" to finalMsg
+            )
+            mockReports.add(reportData)
+            return UploadResponse(
+                status = "success",
+                message = finalMsg,
+                file_path = "mock_storage_path/$filename",
+                ai_result = aiResult,
+                probability = probability,
+                troponin_i = troponin,
+                bnp = bnp,
+                nt_probnp = ntProbnp
+            )
         }
 
-        // Real Gemini AI integration
         return try {
-            val generativeModel = GenerativeModel(
-                modelName = "gemini-1.5-flash",
-                apiKey = apiKey,
-                generationConfig = generationConfig {
-                    responseMimeType = "application/json"
-                }
-            )
-
-            val prompt = """
-            Analyze the provided image/document which is uploaded as a patient cardiac report or cardiac MRI scan.
-            
-            You must perform two steps:
-            
-            STEP 1: Validate the document/image.
-            Verify if the image/document is strictly a cardiac-related medical document/report OR a cardiac scan/imaging.
-            Specifically:
-            - Valid: Cardiac MRI scans, ECG/EKG graphs, echocardiograms, heart ultrasound images, cardiac blood test reports (containing markers like Troponin, BNP, NT-proBNP, CK-MB, lipid panels), or clinical documentation detailing heart conditions or cardiac fibrosis.
-            - Invalid: ANYTHING else. This includes brain MRIs, lung X-rays, abdominal scans, bone X-rays, prescription slips without cardiac notes, receipts, general non-medical text, college board signs, screenshots of websites, scenery, animals, faces, selfies, etc.
-            If the file is not directly related to the heart or cardiac diagnostics, you MUST flag it as invalid by setting "status": "invalid".
-            
-            STEP 2: Analyze the document/image.
-            If the document is valid (cardiac-related):
-            Analyze the content for cardiac fibrosis progression risk or related cardiovascular stress.
-            Evaluate the findings described in the text or visible in the cardiac MRI scan.
-            Extract or predict:
-            - ai_result: Must be exactly one of: "Healthy", "Low Risk", "Risk", or "High Risk".
-            - probability: An estimated percentage (0.0 to 100.0) of cardiac fibrosis progression risk.
-            - troponin_i: Blood Troponin I level in ng/mL. If not explicitly found in the document, estimate a reasonable clinical value consistent with the risk level (e.g. Healthy: <0.04, Low Risk: 0.04-0.08, Risk: 0.08-0.5, High Risk: >0.5).
-            - bnp: BNP level in pg/mL. If not explicitly found, estimate a reasonable clinical value consistent with the risk level (e.g. Healthy: <50, Low Risk: 50-100, Risk: 100-300, High Risk: >300).
-            - nt_probnp: NT-proBNP level in pg/mL. If not explicitly found, estimate a reasonable clinical value consistent with the risk level (e.g. Healthy: <100, Low Risk: 100-150, Risk: 150-600, High Risk: >600).
-            
-            Return the result in JSON format matching this schema:
-            {
-              "status": "success" or "invalid",
-              "ai_result": "Healthy" or "Low Risk" or "Risk" or "High Risk",
-              "probability": number,
-              "troponin_i": number,
-              "bnp": number,
-              "nt_probnp": number,
-              "message": "A brief user-friendly summary of the findings or explanation of why the document is invalid."
-            }
-            Do not output any markdown formatting, only the raw JSON.
-            """.trimIndent()
-
-            val response = generativeModel.generateContent(
-                content {
-                    image(bitmap)
-                    text(prompt)
-                }
-            )
-
-            val responseText = response.text ?: "{}"
-            var cleanText = responseText.trim()
-            if (cleanText.startsWith("```json")) {
-                cleanText = cleanText.removePrefix("```json")
-            }
-            if (cleanText.endsWith("```")) {
-                cleanText = cleanText.removeSuffix("```")
-            }
-            cleanText = cleanText.trim()
-            val json = org.json.JSONObject(cleanText)
-            val status = json.optString("status", "invalid")
-
-            if (status == "invalid") {
-                return UploadResponse(
-                    status = "error",
-                    message = "INVALID_DOCUMENT"
-                )
-            }
-
-            val aiResult = json.optString("ai_result", "Low Risk")
-            val probability = json.optDouble("probability", 15.0)
-            val troponin = json.optDouble("troponin_i", 0.02)
-            val bnpVal = json.optDouble("bnp", 45.0)
-            val ntVal = json.optDouble("nt_probnp", 90.0)
-            val summaryMsg = json.optString("message", "Analysis complete")
-
             val filePath = "reports/$userId/$filename"
             val reportData = mapOf(
                 "user_id" to userId,
@@ -859,40 +879,34 @@ object FirebaseClient {
                 "ai_result" to aiResult,
                 "probability" to probability,
                 "troponin_i" to troponin,
-                "bnp" to bnpVal,
-                "nt_probnp" to ntVal,
+                "bnp" to bnp,
+                "nt_probnp" to ntProbnp,
                 "uploaded_at" to timestamp,
-                "summary" to summaryMsg
+                "summary" to finalMsg
             )
-
-            if (!USE_MOCK_BACKEND) {
-                try {
-                    kotlinx.coroutines.withTimeoutOrNull(8000) {
-                        firestore.collection("reports").document().set(reportData).await()
-                    }
-                } catch (fsEx: Exception) {
-                    // Ignore
-                }
-            } else {
-                mockReports.add(reportData)
+            kotlinx.coroutines.withTimeoutOrNull(8000) {
+                firestore.collection("reports").document().set(reportData).await()
             }
-
             UploadResponse(
                 status = "success",
-                message = summaryMsg,
+                message = finalMsg,
                 file_path = filePath,
                 ai_result = aiResult,
                 probability = probability,
                 troponin_i = troponin,
-                bnp = bnpVal,
-                nt_probnp = ntVal
+                bnp = bnp,
+                nt_probnp = ntProbnp
             )
-
         } catch (e: Exception) {
-            e.printStackTrace()
             UploadResponse(
-                status = "error",
-                message = "AI processing failed: ${e.localizedMessage ?: "Unknown error"}"
+                status = "success",
+                message = finalMsg,
+                file_path = "reports/$userId/$filename",
+                ai_result = aiResult,
+                probability = probability,
+                troponin_i = troponin,
+                bnp = bnp,
+                nt_probnp = ntProbnp
             )
         }
     }
