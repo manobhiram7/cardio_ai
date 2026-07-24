@@ -214,7 +214,7 @@ async function fetchUserData(userId) {
     if (firebaseEnabled && db) {
         try {
             // 1. Fetch main user profile
-            const userDoc = await withTimeout(db.collection("users").doc(userId).get(), 1000);
+            const userDoc = await withTimeout(db.collection("users").doc(userId).get(), 10000);
             if (userDoc.exists) {
                 const userData = userDoc.data();
                 appState.currentUser = {
@@ -231,7 +231,7 @@ async function fetchUserData(userId) {
             }
 
             // 2. Fetch patient details
-            const detailDoc = await withTimeout(db.collection("patient_details").doc(userId).get(), 1000);
+            const detailDoc = await withTimeout(db.collection("patient_details").doc(userId).get(), 10000);
             if (detailDoc.exists) {
                 const det = detailDoc.data();
                 appState.patientDetails = {
@@ -250,7 +250,7 @@ async function fetchUserData(userId) {
             }
 
             // 3. Fetch patient reports
-            const reportsSnap = await withTimeout(db.collection("reports").where("user_id", "==", userId).get(), 1200);
+            const reportsSnap = await withTimeout(db.collection("reports").where("user_id", "==", userId).get(), 10000);
             const loadedReports = [];
             reportsSnap.forEach(doc => {
                 const rep = doc.data();
@@ -331,7 +331,7 @@ async function savePatientDetailsToBackend() {
                 smoking_habit: appState.patientDetails.smoking,
                 alcohol_consumption: appState.patientDetails.alcohol,
                 family_history: appState.patientDetails.familyHistory
-            }), 1000);
+            }), 10000);
             console.log("Patient details uploaded to Firebase Firestore.");
         } catch (err) {
             console.error("Firestore write failed. Cached locally.", err);
@@ -355,7 +355,7 @@ async function saveUserProfileToBackend() {
                 emergency_contact: appState.currentUser ? appState.currentUser.emergency : '',
                 profile_picture_url: appState.currentUser ? (appState.currentUser.profilePictureUrl || '') : '',
                 settings: appState.settings
-            }), 1000);
+            }), 10000);
             console.log("Profile updates synced to Firebase Firestore.");
         } catch (err) {
             console.error("Firestore user write failed.", err);
@@ -379,7 +379,7 @@ async function uploadReportToBackend(report) {
                 bnp: report.bnp,
                 nt_probnp: report.ntProbnp,
                 uploaded_at: timestampStr
-            }), 1200);
+            }), 10000);
             console.log("Diagnostic report logged in Firebase.");
         } catch (err) {
             console.error("Firestore report write failed.", err);
@@ -931,7 +931,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (firebaseEnabled && auth) {
             try {
-                const cred = await withTimeout(auth.signInWithEmailAndPassword(email, password), 2500);
+                const cred = await withTimeout(auth.signInWithEmailAndPassword(email, password), 10000);
                 localStorage.setItem('cp_active_user', cred.user.uid);
                 await fetchUserData(cred.user.uid);
                 
