@@ -231,7 +231,16 @@ object FirebaseClient {
             return AuthResponse(status = "success", message = "Patient details saved (MOCK)")
         }
         return try {
-            firestore.collection("patient_details").document(request.user_id).set(request)
+            val detailsMap = mapOf(
+                "user_id" to request.user_id,
+                "full_name" to request.full_name,
+                "dob" to request.dob,
+                "gender" to request.gender,
+                "blood_type" to request.blood_type,
+                "height_cm" to request.height_cm,
+                "weight_kg" to request.weight_kg
+            )
+            firestore.collection("patient_details").document(request.user_id).set(detailsMap).await()
             AuthResponse(status = "success", message = "Patient details saved successfully")
         } catch (e: Exception) {
             AuthResponse(status = "success", message = "Patient details saved (Offline Mode)")

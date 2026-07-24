@@ -517,7 +517,7 @@ fun AppNavigator() {
         label = "ScreenTransition"
     ) { targetState ->
         when (targetState) {
-            "splash" -> SplashScreen { screenState.value = if (loggedInUserId.value.isNotEmpty()) "home" else "on1" }
+            "splash" -> SplashScreen { screenState.value = "on1" }
             "on1" -> Onboarding1(
                 onNext = { screenState.value = "on2" },
                 onSkip = { screenState.value = "login" }
