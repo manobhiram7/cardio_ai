@@ -732,7 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Firebase state tracking boot
     if (firebaseEnabled && auth) {
         auth.onAuthStateChanged(async (user) => {
-            if (user) {
+            if (user && sessionStorage.getItem('cp_session_active')) {
                 console.log("Firebase Auth User Detected:", user.email);
                 const success = await fetchUserData(user.uid);
                 if (success) {
@@ -741,25 +741,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     showTab('tab-dashboard');
                 }
             } else {
-                console.log("No active Firebase session. Loading login.");
-                localStorage.removeItem('cp_active_user');
-                showScreen('on1');
+                console.log("Loading credentials onboarding flow.");
+                setTimeout(() => {
+                    showScreen('on1');
+                }, 1000);
             }
         });
     } else {
-        // Fallback local storage boot
-        const activeUserId = localStorage.getItem('cp_active_user');
-        if (activeUserId) {
-            fetchUserData(activeUserId).then(() => {
-                syncDashboard();
-                showScreen('main');
-                showTab('tab-dashboard');
-            });
-        } else {
-            setTimeout(() => {
-                showScreen('on1');
-            }, 1800);
-        }
+        setTimeout(() => {
+            showScreen('on1');
+        }, 1200);
         updateConnectionDot(false);
     }
 
@@ -795,7 +786,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('go-forgot').addEventListener('click', (e) => {
-        e.preventDefault(); showScreen('forgot');
+        e.preventDefault(); showScreen('forgot-password');
     });
 
     document.getElementById('forgot-back').addEventListener('click', (e) => {
@@ -839,7 +830,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (firebaseEnabled && auth) {
             try {
-                const cred = await withTimeout(auth.createUserWithEmailAndPassword(email, password), 2500);
+                const cred = await withTimeout(auth.createUserWithEmailAndPassword(email, password), 10000);
                 const uid = cred.user.uid;
                 
                 // Write user details
@@ -852,7 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     address: "",
                     emergency: "",
                     emergency_contact: ""
-                }), 1500);
+                }), 10000);
                 
                 localStorage.setItem('cp_active_user', uid);
                 localStorage.setItem('cp_pending_verify', uid);
@@ -932,6 +923,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (firebaseEnabled && auth) {
             try {
                 const cred = await withTimeout(auth.signInWithEmailAndPassword(email, password), 10000);
+                sessionStorage.setItem('cp_session_active', 'true');
                 localStorage.setItem('cp_active_user', cred.user.uid);
                 await fetchUserData(cred.user.uid);
                 
