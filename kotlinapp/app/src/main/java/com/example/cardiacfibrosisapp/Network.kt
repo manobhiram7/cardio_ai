@@ -135,6 +135,10 @@ object FirebaseClient {
     private val firestore: FirebaseFirestore get() = FirebaseFirestore.getInstance()
     private val storage: FirebaseStorage get() = FirebaseStorage.getInstance()
 
+    fun getCurrentUserId(): String? {
+        return auth.currentUser?.uid
+    }
+
     // --- Mock In-Memory Database ---
     private val mockUsers = mutableMapOf<String, UserData>()
     private val mockProfiles = mutableMapOf<String, ProfileData>()

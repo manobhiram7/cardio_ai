@@ -340,7 +340,8 @@ fun AppNavigator() {
     val lastActivityTime = remember { mutableStateOf("2 hours ago") }
     val currentFailureReason = remember { mutableStateOf(FailureReason.NONE) }
     val selectedReportUri = remember { mutableStateOf<Uri?>(null) }
-    val loggedInUserId = remember { mutableStateOf("") }
+    val activeUid = FirebaseClient.getCurrentUserId() ?: ""
+    val loggedInUserId = remember { mutableStateOf(activeUid) }
     val lastUploadResponse = remember { mutableStateOf<UploadResponse?>(null) }
     val lastUpdatedText = remember { mutableStateOf("Today, 10:30 AM") }
 
@@ -516,7 +517,7 @@ fun AppNavigator() {
         label = "ScreenTransition"
     ) { targetState ->
         when (targetState) {
-            "splash" -> SplashScreen { screenState.value = "on1" }
+            "splash" -> SplashScreen { screenState.value = if (loggedInUserId.value.isNotEmpty()) "home" else "on1" }
             "on1" -> Onboarding1(
                 onNext = { screenState.value = "on2" },
                 onSkip = { screenState.value = "login" }
