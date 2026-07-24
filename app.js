@@ -219,11 +219,11 @@ async function fetchUserData(userId) {
                 const userData = userDoc.data();
                 appState.currentUser = {
                     id: userId,
-                    name: userData.name || 'User',
+                    name: userData.name || userData.full_name || 'User',
                     email: userData.email,
                     phone: userData.phone || '',
                     address: userData.address || '',
-                    emergency: userData.emergency || '',
+                    emergency: userData.emergency || userData.emergency_contact || '',
                     profilePictureUrl: userData.profile_picture_url || '',
                     settings: userData.settings || { ...appState.settings }
                 };
@@ -319,6 +319,7 @@ async function savePatientDetailsToBackend() {
         try {
             await withTimeout(db.collection("patient_details").doc(userId).set({
                 user_id: userId,
+                full_name: appState.currentUser ? appState.currentUser.name : 'User',
                 dob: appState.patientDetails.dob,
                 gender: appState.patientDetails.gender,
                 blood_type: appState.patientDetails.bloodGroup,
@@ -347,9 +348,11 @@ async function saveUserProfileToBackend() {
         try {
             await withTimeout(db.collection("users").doc(userId).update({
                 name: appState.currentUser ? appState.currentUser.name : 'User',
+                full_name: appState.currentUser ? appState.currentUser.name : 'User',
                 phone: appState.currentUser ? appState.currentUser.phone : '',
                 address: appState.currentUser ? appState.currentUser.address : '',
                 emergency: appState.currentUser ? appState.currentUser.emergency : '',
+                emergency_contact: appState.currentUser ? appState.currentUser.emergency : '',
                 profile_picture_url: appState.currentUser ? (appState.currentUser.profilePictureUrl || '') : '',
                 settings: appState.settings
             }), 1000);
@@ -843,10 +846,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 await withTimeout(db.collection("users").doc(uid).set({
                     id: uid,
                     name: name,
+                    full_name: name,
                     email: email,
                     phone: "",
                     address: "",
-                    emergency: ""
+                    emergency: "",
+                    emergency_contact: ""
                 }), 1500);
                 
                 localStorage.setItem('cp_active_user', uid);
