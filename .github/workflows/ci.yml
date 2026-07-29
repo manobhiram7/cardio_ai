@@ -1,4 +1,4 @@
-name: FitnessPaw QA Enterprise CI/CD
+name: CardioAI Enterprise QA CI/CD
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   selenium-tests:
-    name: Selenium - Website Tests (300)
+    name: Selenium - CardioAI Web Tests (300)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Codebase
@@ -30,7 +30,7 @@ jobs:
           path: tests/reports/selenium-report.json
 
   appium-tests:
-    name: Appium - Android Tests (300)
+    name: Appium - CardioAI Android App Tests (300)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Codebase
@@ -52,7 +52,7 @@ jobs:
           path: tests/reports/appium-report.json
 
   api-tests:
-    name: Unit Tests - API (300)
+    name: Unit Tests - CardioAI API & Cloud (300)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Codebase
@@ -74,7 +74,7 @@ jobs:
           path: tests/reports/api-report.json
 
   validation-tests:
-    name: Validation Tests (300)
+    name: Validation Tests - CardioAI Biomarkers (300)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Codebase
@@ -96,7 +96,7 @@ jobs:
           path: tests/reports/validation-report.json
 
   deployment-status:
-    name: Deployment Status (300)
+    name: Deployment Status - CardioAI Web & Mobile (300)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Codebase
@@ -118,7 +118,7 @@ jobs:
           path: tests/reports/deployment-report.json
 
   load-tests:
-    name: Load Testing - Performance (300)
+    name: Load Testing - CardioAI Realtime Sync (300)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Codebase
@@ -140,7 +140,7 @@ jobs:
           path: tests/reports/load-report.json
 
   compile-report:
-    name: Compile Master Report & Deploy
+    name: Compile CardioAI Master Report & Deploy
     needs: [selenium-tests, appium-tests, api-tests, validation-tests, deployment-status, load-tests]
     runs-on: ubuntu-latest
     steps:
