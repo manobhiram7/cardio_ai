@@ -118,6 +118,28 @@ object AppSettings {
         prefs.edit().putBoolean("email_notifications", value).apply()
     }
 
+    fun saveActiveUserId(userId: String) {
+        if (::prefs.isInitialized) {
+            prefs.edit().putString("active_user_id", userId).apply()
+        }
+    }
+
+    fun getActiveUserId(): String? {
+        if (!::prefs.isInitialized) return null
+        val savedId = prefs.getString("active_user_id", null)
+        val firebaseId = FirebaseClient.getCurrentUserId()
+        return if (!firebaseId.isNullOrEmpty()) firebaseId else if (!savedId.isNullOrEmpty()) savedId else null
+    }
+
+    fun clearSession() {
+        if (::prefs.isInitialized) {
+            prefs.edit().remove("active_user_id").apply()
+        }
+        try {
+            com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+        } catch (_: Exception) {}
+    }
+
     fun saveLatestReportLocally(
         userId: String,
         riskLevel: String,
@@ -237,7 +259,6 @@ fun playTapFeedback(view: android.view.View) {
     if (AppSettings.soundEffects) {
         view.playSoundEffect(android.view.SoundEffectConstants.CLICK)
     }
-    view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
 }
 
 val AppBackgroundColor: Color
@@ -253,7 +274,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AppSettings.init(this)
-        setContent { AppNavigator() }
+        setContent {
+            com.example.cardiacfibrosisapp.ui.theme.CardiacFibrosisAppTheme(
+                darkTheme = AppSettings.darkMode
+            ) {
+                AppNavigator()
+            }
+        }
     }
 }
 
@@ -262,11 +289,41 @@ fun getCurrentFormattedDateOnly(): String {
     return sdf.format(Date())
 }
 
+// --- Cross-Platform Timestamp Parsing ---
+// The backend stores "uploaded_at" as an ISO-8601 UTC string (e.g. "2026-07-29T14:23:01.123Z"),
+// written the same way by both the Android app and the web app. This parser also accepts the
+// legacy "yyyy-MM-dd HH:mm:ss" (device-local) format so records written before this fix still
+// display correctly. Always try ISO first since that's the canonical format going forward.
+private val isoTimestampFormats = listOf(
+    "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+    "yyyy-MM-dd'T'HH:mm:ss'Z'"
+)
+private val legacyTimestampFormat = "yyyy-MM-dd HH:mm:ss"
+
+fun parseTimestamp(dateStr: String?): Date? {
+    if (dateStr.isNullOrEmpty()) return null
+    for (pattern in isoTimestampFormats) {
+        try {
+            val sdf = SimpleDateFormat(pattern, Locale.US)
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+            sdf.isLenient = false
+            return sdf.parse(dateStr)
+        } catch (e: Exception) {
+            // try next pattern
+        }
+    }
+    return try {
+        val sdf = SimpleDateFormat(legacyTimestampFormat, Locale.getDefault())
+        sdf.parse(dateStr)
+    } catch (e: Exception) {
+        null
+    }
+}
+
 fun formatDateString(dateStr: String?): String? {
     if (dateStr.isNullOrEmpty()) return null
     return try {
-        val inSdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val date = inSdf.parse(dateStr) ?: return null
+        val date = parseTimestamp(dateStr) ?: return null
         val outSdf = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
         outSdf.format(date)
     } catch (e: Exception) {
@@ -277,9 +334,8 @@ fun formatDateString(dateStr: String?): String? {
 fun formatActivityTime(dbTimeStr: String?): String {
     if (dbTimeStr.isNullOrEmpty()) return "No activity yet"
     return try {
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val date = sdf.parse(dbTimeStr) ?: return dbTimeStr
-        
+        val date = parseTimestamp(dbTimeStr) ?: return dbTimeStr
+
         val now = Date()
         val diffMs = now.time - date.time
         val diffSec = diffMs / 1000
@@ -306,8 +362,7 @@ fun formatActivityTime(dbTimeStr: String?): String {
 fun formatLastUpdatedTime(dbTimeStr: String?): String {
     if (dbTimeStr.isNullOrEmpty()) return "Never"
     return try {
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val date = sdf.parse(dbTimeStr) ?: return dbTimeStr
+        val date = parseTimestamp(dbTimeStr) ?: return dbTimeStr
         
         val outTimeSdf = SimpleDateFormat("h:mm a", Locale.getDefault())
         val timeStr = outTimeSdf.format(date)
@@ -335,12 +390,13 @@ fun getCurrentFormattedTime(): String {
 
 @Composable
 fun AppNavigator() {
-    val screenState = remember { mutableStateOf("splash") }
+    val activeUid = AppSettings.getActiveUserId() ?: ""
+    val initialScreen = if (activeUid.isNotEmpty()) "home" else "splash"
+    val screenState = remember { mutableStateOf(initialScreen) }
     val currentAnalysisResult = remember { mutableStateOf(allAnalysisResults[1]) } // Default to Low Risk
     val lastActivityTime = remember { mutableStateOf("2 hours ago") }
     val currentFailureReason = remember { mutableStateOf(FailureReason.NONE) }
     val selectedReportUri = remember { mutableStateOf<Uri?>(null) }
-    val activeUid = FirebaseClient.getCurrentUserId() ?: ""
     val loggedInUserId = remember { mutableStateOf(activeUid) }
     val lastUploadResponse = remember { mutableStateOf<UploadResponse?>(null) }
     val lastUpdatedText = remember { mutableStateOf("Today, 10:30 AM") }
@@ -473,6 +529,47 @@ fun AppNavigator() {
         }
     }
 
+    DisposableEffect(loggedInUserId.value) {
+        val userId = loggedInUserId.value
+        if (userId.isNotEmpty()) {
+            val listener = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                .collection("reports")
+                .whereEqualTo("user_id", userId)
+                .addSnapshotListener { snapshot, error ->
+                    if (error == null && snapshot != null && !snapshot.isEmpty) {
+                        // Sort by the parsed timestamp, not the raw string — records from the
+                        // web app and the Android app can use different (but both valid)
+                        // timestamp formats, and string sort compares them incorrectly.
+                        val docs = snapshot.documents.sortedByDescending {
+                            parseTimestamp(it.getString("uploaded_at"))?.time ?: 0L
+                        }
+                        if (docs.isNotEmpty()) {
+                            val data = docs[0]
+                            val rLevel = data.getString("ai_result") ?: "Low Risk"
+                            val pVal = (data.getDouble("probability") ?: 15.0).toInt()
+                            val trop = data.getDouble("troponin_i")
+                            val bnp = data.getDouble("bnp")
+                            val nt = data.getDouble("nt_probnp")
+                            val dateStr = data.getString("uploaded_at") ?: ""
+
+                            val matchedResult = when (rLevel) {
+                                "Healthy" -> AnalysisResult(riskLevel = "Healthy", probability = pVal, description = "Negligible probability of cardiac fibrosis. Your heart is in excellent condition.", color = Color(0xFF4CAF50), bgColor = Color(0xFFE8F5E9), findings = listOf("Optimal cardiac biomarkers" to "All troponin and BNP levels are at ideal baseline"), recommendations = listOf("Maintain current healthy lifestyle"), troponin_i = trop, bnp = bnp, nt_probnp = nt)
+                                "Low Risk" -> AnalysisResult(riskLevel = "Low Risk", probability = pVal, description = "Low probability of cardiac fibrosis progression. Maintain healthy habits.", color = Color(0xFF00BFA5), bgColor = Color(0xFFE0F2F1), findings = listOf("Normal cardiac biomarkers" to "All troponin and BNP levels within normal range"), recommendations = listOf("Continue balanced nutrition and exercise"), troponin_i = trop, bnp = bnp, nt_probnp = nt)
+                                "Risk" -> AnalysisResult(riskLevel = "Risk", probability = pVal, description = "Moderate probability detected. Some markers indicate early signs of stress.", color = Color(0xFFFFA000), bgColor = Color(0xFFFFF8E1), findings = listOf("Elevated biomarkers detected" to "Mild elevation in BNP levels suggests cardiac strain"), recommendations = listOf("Consult a cardiologist for a detailed evaluation"), troponin_i = trop, bnp = bnp, nt_probnp = nt)
+                                else -> AnalysisResult(riskLevel = "High Risk", probability = pVal, description = "Significant probability of cardiac fibrosis. Immediate medical consultation required.", color = Color(0xFFD32F2F), bgColor = Color(0xFFFFEBEE), findings = listOf("Significant biomarker elevation" to "High Troponin I levels indicate potential cardiac injury"), recommendations = listOf("Immediate consultation with a cardiac specialist"), troponin_i = trop, bnp = bnp, nt_probnp = nt)
+                            }
+                            currentAnalysisResult.value = matchedResult.copy(date = formatDateString(dateStr))
+                            lastActivityTime.value = formatActivityTime(dateStr)
+                            lastUpdatedText.value = formatLastUpdatedTime(dateStr)
+                        }
+                    }
+                }
+            onDispose { listener.remove() }
+        } else {
+            onDispose { }
+        }
+    }
+
     val backEnabled = when (screenState.value) {
         "splash", "login", "home", "uploading", "ai_analysis_progress" -> false
         else -> true
@@ -517,7 +614,15 @@ fun AppNavigator() {
         label = "ScreenTransition"
     ) { targetState ->
         when (targetState) {
-            "splash" -> SplashScreen { screenState.value = "on1" }
+            "splash" -> SplashScreen { 
+                val activeId = AppSettings.getActiveUserId()
+                if (!activeId.isNullOrEmpty()) {
+                    loggedInUserId.value = activeId
+                    screenState.value = "home"
+                } else {
+                    screenState.value = "on1"
+                }
+            }
             "on1" -> Onboarding1(
                 onNext = { screenState.value = "on2" },
                 onSkip = { screenState.value = "login" }
@@ -535,14 +640,14 @@ fun AppNavigator() {
                 onForgotPassword = { screenState.value = "forgot_password" },
                 onLoginSuccess = { userId -> 
                     loggedInUserId.value = userId
-                    screenState.value = "continue_patient" 
+                    AppSettings.saveActiveUserId(userId)
+                    screenState.value = "home" 
                 }
             )
             "signup" -> SignupScreen(
                 onSignIn = { screenState.value = "login" },
-                onSignUpSuccess = { userId -> 
-                    loggedInUserId.value = userId
-                    screenState.value = "verify" 
+                onSignUpSuccess = { _ -> 
+                    screenState.value = "login" 
                 }
             )
             "verify" -> VerifyEmailScreen(
@@ -797,7 +902,11 @@ fun AppNavigator() {
                 onBack = { screenState.value = "home" },
                 onHomeTab = { screenState.value = "home" },
                 onHealthTab = { screenState.value = "health_summary" },
-                onProfileTab = { screenState.value = "edit_profile" }
+                onProfileTab = { screenState.value = "edit_profile" },
+                onLogout = {
+                    loggedInUserId.value = ""
+                    screenState.value = "login"
+                }
             )
             "health_alerts" -> HealthAlertsScreen(
                 onBack = { screenState.value = "home" }
@@ -1127,6 +1236,7 @@ fun BottomBar(active: Int, buttonText: String = "Next", onNext: () -> Unit) {
 fun LoginScreen(onSignUp: () -> Unit, onForgotPassword: () -> Unit, onLoginSuccess: (String) -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -1153,14 +1263,19 @@ fun LoginScreen(onSignUp: () -> Unit, onForgotPassword: () -> Unit, onLoginSucce
         )
 
         Spacer(modifier = Modifier.height(32.dp))
-        MainButton("Sign In") {
-            if (email.isBlank() || password.isBlank()) {
+        MainButton(if (isLoading) "Signing In..." else "Sign In") {
+            if (isLoading) return@MainButton
+            val cleanEmail = email.trim()
+            val cleanPassword = password.trim()
+            if (cleanEmail.isBlank() || cleanPassword.isBlank()) {
                 Toast.makeText(context, "Please enter email and password", Toast.LENGTH_SHORT).show()
                 return@MainButton
             }
+            isLoading = true
             coroutineScope.launch {
                 try {
-                    val response = RetrofitClient.apiService.loginUser(LoginRequest(email, password))
+                    val response = RetrofitClient.apiService.loginUser(LoginRequest(cleanEmail, cleanPassword))
+                    isLoading = false
                     if (response.status == "success") {
                         Toast.makeText(context, "Login Successful", Toast.LENGTH_SHORT).show()
                         onLoginSuccess(response.user?.id ?: "")
@@ -1168,6 +1283,7 @@ fun LoginScreen(onSignUp: () -> Unit, onForgotPassword: () -> Unit, onLoginSucce
                         Toast.makeText(context, response.message, Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
+                    isLoading = false
                     Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -1186,6 +1302,7 @@ fun SignupScreen(onSignIn: () -> Unit, onSignUpSuccess: (String) -> Unit) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var isSigningUp by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -1225,21 +1342,28 @@ fun SignupScreen(onSignIn: () -> Unit, onSignUpSuccess: (String) -> Unit) {
         Text(text = annotatedString, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
 
         Spacer(modifier = Modifier.height(32.dp))
-        MainButton("Create Account") {
-            if (fullName.isBlank() || email.isBlank() || password.isBlank()) {
+        MainButton(if (isSigningUp) "Signing up..." else "Create Account") {
+            if (isSigningUp) return@MainButton
+            val cleanName = fullName.trim()
+            val cleanEmail = email.trim()
+            val cleanPassword = password.trim()
+            if (cleanName.isBlank() || cleanEmail.isBlank() || cleanPassword.isBlank()) {
                 Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
                 return@MainButton
             }
+            isSigningUp = true
             coroutineScope.launch {
                 try {
-                    val response = RetrofitClient.apiService.registerUser(RegisterRequest(fullName, email, password))
+                    val response = RetrofitClient.apiService.registerUser(RegisterRequest(cleanName, cleanEmail, cleanPassword))
+                    isSigningUp = false
                     if (response.status == "success") {
-                        Toast.makeText(context, "Registration Successful", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Account created successfully!", Toast.LENGTH_SHORT).show()
                         onSignUpSuccess(response.user?.id ?: "")
                     } else {
-                        Toast.makeText(context, response.message, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, response.message ?: "Registration failed", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
+                    isSigningUp = false
                     Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -1927,7 +2051,7 @@ fun HealthSummaryScreen(result: AnalysisResult, lastUpdatedTime: String, onBack:
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Vital Metrics Card
-                Text("Vital Metrics", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Vital Metrics & Biomarkers", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(16.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -1935,11 +2059,19 @@ fun HealthSummaryScreen(result: AnalysisResult, lastUpdatedTime: String, onBack:
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        VitalMetricItem("Heart Rate", "72 bpm", "Normal", Icons.Default.Favorite, Color(0xFFE3F2FD), Color(0xFF1976D2))
+                        val tropVal = result.troponin_i ?: 0.024
+                        val tropStatus = if (tropVal >= 0.12) "Elevated" else if (tropVal >= 0.04) "Borderline" else "Normal"
+                        val tropColor = if (tropVal >= 0.12) Color(0xFFD32F2F) else if (tropVal >= 0.04) Color(0xFFFFA000) else Color(0xFF1976D2)
+                        VitalMetricItem("Troponin I", "$tropVal ng/mL", tropStatus, Icons.Default.Favorite, Color(0xFFE3F2FD), tropColor)
+                        
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF5F5F5))
-                        VitalMetricItem("Blood Pressure", "120/80 mmHg", "Normal", Icons.Default.MonitorHeart, Color(0xFFE8F9F1), Color(0xFF2D6A4F))
+                        val bnpVal = result.bnp ?: 58.0
+                        val bnpStatus = if (bnpVal >= 300.0) "High" else if (bnpVal >= 100.0) "Elevated" else "Normal"
+                        val bnpColor = if (bnpVal >= 100.0) Color(0xFFD32F2F) else Color(0xFF2D6A4F)
+                        VitalMetricItem("BNP Level", "$bnpVal pg/mL", bnpStatus, Icons.Default.MonitorHeart, Color(0xFFE8F9F1), bnpColor)
+                        
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF5F5F5))
-                        VitalMetricItem("Fibrosis Risk", "15%", "Low", Icons.Default.BarChart, Color(0xFFFFF8E1), Color(0xFFFFA000))
+                        VitalMetricItem("Fibrosis Risk", "${result.probability}%", result.riskLevel, Icons.Default.BarChart, result.bgColor, result.color)
                     }
                 }
 
@@ -2780,6 +2912,9 @@ fun EditProfileScreen(userId: String, onBack: () -> Unit, onHomeTab: () -> Unit,
     var emergencyContact by remember { mutableStateOf("") }
     var profilePictureUrl by remember { mutableStateOf<String?>(null) }
 
+    var isSaving by remember { mutableStateOf(false) }
+    var isSavedSuccess by remember { mutableStateOf(false) }
+
     LaunchedEffect(userId) {
         if (userId.isNotEmpty()) {
             try {
@@ -2843,24 +2978,23 @@ fun EditProfileScreen(userId: String, onBack: () -> Unit, onHomeTab: () -> Unit,
                         Text("Back", color = Color.White, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Edit Profile", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Text("Update your personal information", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                    Text("Account Details", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Text("Manage your personal profile and preferences", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
                 }
             }
 
             Column(
                 modifier = Modifier
-                    .padding(horizontal = 24.dp)
-                    .offset(y = (-40).dp),
+                    .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Profile Picture Section
+                // Profile Picture Selector
                 Box(contentAlignment = Alignment.BottomEnd) {
                     Box(
                         modifier = Modifier
                             .size(100.dp)
                             .clip(CircleShape)
-                            .background(Color.White)
+                            .background(Color(0xFFF0F0F0))
                             .border(2.dp, Color.White, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
@@ -2870,7 +3004,8 @@ fun EditProfileScreen(userId: String, onBack: () -> Unit, onHomeTab: () -> Unit,
                                 if (profilePictureUrl!!.startsWith("data:image/")) {
                                     try {
                                         val cleanStr = profilePictureUrl!!.substringAfter("base64,").trim().replace("\\s".toRegex(), "")
-                                        Base64.decode(cleanStr, Base64.DEFAULT)
+                                        val bytes = Base64.decode(cleanStr, Base64.DEFAULT)
+                                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                                     } catch (e: Exception) {
                                         null
                                     }
@@ -2930,7 +3065,9 @@ fun EditProfileScreen(userId: String, onBack: () -> Unit, onHomeTab: () -> Unit,
 
                 Button(
                     onClick = {
+                        if (isSaving) return@Button
                         if (userId.isNotEmpty()) {
+                            isSaving = true
                             coroutineScope.launch {
                                 try {
                                     val request = ProfileRequest(
@@ -2942,28 +3079,40 @@ fun EditProfileScreen(userId: String, onBack: () -> Unit, onHomeTab: () -> Unit,
                                         emergency_contact = emergencyContact
                                     )
                                     val response = RetrofitClient.apiService.saveProfile(request)
+                                    isSaving = false
                                     if (response.status == "success") {
-                                        Toast.makeText(context, "Profile saved successfully", Toast.LENGTH_SHORT).show()
-                                        onBack()
+                                        isSavedSuccess = true
+                                        Toast.makeText(context, "Profile saved and synced!", Toast.LENGTH_SHORT).show()
+                                        kotlinx.coroutines.delay(2500)
+                                        isSavedSuccess = false
                                     } else {
                                         Toast.makeText(context, "Failed to save: ${response.message}", Toast.LENGTH_SHORT).show()
                                     }
                                 } catch (e: Exception) {
+                                    isSaving = false
                                     Toast.makeText(context, "Error saving: ${e.message}", Toast.LENGTH_SHORT).show()
                                 }
                             }
-                        } else {
-                            onBack()
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isSavedSuccess) Color(0xFF4CAF50) else AccentColor),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Save, contentDescription = null, tint = Color(0xFF0A161B), modifier = Modifier.size(18.dp))
+                        Icon(
+                            imageVector = if (isSavedSuccess) Icons.Default.Check else Icons.Default.Save,
+                            contentDescription = null,
+                            tint = if (isSavedSuccess) Color.White else Color(0xFF0A161B),
+                            modifier = Modifier.size(18.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Changes", color = Color(0xFF0A161B), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(
+                            text = if (isSaving) "Saving..." else if (isSavedSuccess) "Saved & Synced!" else "Save Changes",
+                            color = if (isSavedSuccess) Color.White else Color(0xFF0A161B),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
                     }
                 }
             }
@@ -2980,7 +3129,7 @@ fun ProfileInputField(label: String, placeholder: String, icon: ImageVector, isL
             value = textValue,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth().then(if (isLarge) Modifier.height(80.dp) else Modifier.height(52.dp)),
-            placeholder = { Text(placeholder, color = Color.Black, fontSize = 14.sp) },
+            placeholder = { Text(placeholder, color = Color.Gray.copy(alpha = 0.5f), fontSize = 14.sp) },
             leadingIcon = { Icon(icon, contentDescription = null, tint = Color(0xFF1B333D), modifier = Modifier.padding(start = 12.dp, end = 8.dp).size(20.dp)) },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color(0xFFF8F9FA),
@@ -4114,6 +4263,22 @@ fun RiskLevelAnalysisScreen(
     onHealthTab: () -> Unit,
     onProfileTab: () -> Unit
 ) {
+    val userId = FirebaseClient.getCurrentUserId() ?: ""
+    var patientDetails by remember { mutableStateOf<PatientDetailsData?>(null) }
+
+    LaunchedEffect(Unit) {
+        if (userId.isNotEmpty()) {
+            try {
+                val response = RetrofitClient.apiService.getPatientDetails(userId)
+                if (response.status == "success" && response.data != null) {
+                    patientDetails = response.data
+                }
+            } catch (e: Exception) {
+                // Ignore error
+            }
+        }
+    }
+
     Scaffold(
         bottomBar = { AppBottomBar(selectedItem = 0, onHomeClick = onHomeTab, onHealthClick = onHealthTab, onProfileClick = onProfileTab) }
     ) { padding ->
@@ -4144,7 +4309,7 @@ fun RiskLevelAnalysisScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                     Text("Risk Level Analysis", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Comprehensive risk breakdown", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                    Text("Comprehensive risk breakdown based on patient upload", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
@@ -4177,7 +4342,7 @@ fun RiskLevelAnalysisScreen(
                         Text(result.riskLevel, color = result.color, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Based on current health data and\nlifestyle factors",
+                            "Based on uploaded patient report scan\nand biomarker AI analysis",
                             color = Color.Gray,
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center
@@ -4187,7 +4352,7 @@ fun RiskLevelAnalysisScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Risk Factors Assessment
+                // Risk Factors & Biomarker Assessment
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -4197,15 +4362,26 @@ fun RiskLevelAnalysisScreen(
                     Column(
                         modifier = Modifier.padding(24.dp)
                     ) {
-                        Text("Risk Factors Assessment", color = Color(0xFF1B333D), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Biomarker & Patient Risk Breakdown", color = Color(0xFF1B333D), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        RiskFactorItem("Age", "35 years", "Low")
-                        RiskFactorItem("Blood Pressure", "120/80", "Normal")
-                        RiskFactorItem("Cholesterol", "180 mg/dL", "Good")
-                        RiskFactorItem("Smoking", "Never", "Low")
-                        RiskFactorItem("Arsenic Exposure", "None", "Low")
-                        RiskFactorItem("Family History", "No cardiac events", "Low", isLast = true)
+                        val tropVal = result.troponin_i ?: 0.024
+                        val tropStatus = if (tropVal >= 0.12) "Elevated" else if (tropVal >= 0.04) "Borderline" else "Normal"
+                        RiskFactorItem("Troponin I Level", "$tropVal ng/mL", tropStatus)
+
+                        val bnpVal = result.bnp ?: 58.0
+                        val bnpStatus = if (bnpVal >= 300.0) "High" else if (bnpVal >= 100.0) "Elevated" else "Normal"
+                        RiskFactorItem("BNP Level", "$bnpVal pg/mL", bnpStatus)
+
+                        val ntVal = result.nt_probnp ?: 94.0
+                        val ntStatus = if (ntVal >= 450.0) "High" else if (ntVal >= 125.0) "Elevated" else "Normal"
+                        RiskFactorItem("NT-proBNP Level", "$ntVal pg/mL", ntStatus)
+
+                        val ageStr = if (!patientDetails?.dob.isNullOrEmpty()) "${patientDetails?.dob} (${patientDetails?.gender ?: "Patient"})" else "Standard Demographics"
+                        RiskFactorItem("Patient Demographics", ageStr, "Recorded")
+
+                        RiskFactorItem("Fibrosis Progression Score", "${result.probability}% Risk", result.riskLevel)
+                        RiskFactorItem("Report Scan Date", result.date ?: "Today", "Verified", isLast = true)
                     }
                 }
                 
@@ -5092,7 +5268,8 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onHomeTab: () -> Unit,
     onHealthTab: () -> Unit,
-    onProfileTab: () -> Unit
+    onProfileTab: () -> Unit,
+    onLogout: () -> Unit = {}
 ) {
     val view = LocalView.current
     var pushNotifications by remember { mutableStateOf(AppSettings.pushNotifications) }
@@ -5240,28 +5417,6 @@ fun SettingsScreen(
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                         
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text("Dark Mode", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = AppTextColor)
-                                Text("Use dark theme", fontSize = 12.sp, color = Color.Gray)
-                            }
-                            Switch(
-                                checked = darkMode,
-                                onCheckedChange = {
-                                    darkMode = it
-                                    AppSettings.saveDarkMode(it)
-                                    playTapFeedback(view)
-                                },
-                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = AccentColor)
-                            )
-                        }
-                        
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF5F5F5))
-                        
                         Text("Color Theme", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = AppTextColor)
                         Spacer(modifier = Modifier.height(12.dp))
                         
@@ -5306,7 +5461,7 @@ fun SettingsScreen(
                     }
                 }
 
-                // Sound & Vibration Card
+                // Account & Logout Session Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -5317,34 +5472,32 @@ fun SettingsScreen(
                             Box(
                                 modifier = Modifier
                                     .size(32.dp)
-                                    .background(Color(0xFFFFF8E1), CircleShape),
+                                    .background(Color(0xFFFFEBEE), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.VolumeUp, contentDescription = null, tint = Color(0xFFFFA000), modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.PowerSettingsNew, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp))
                             }
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text("Sound & Vibration", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = AppTextColor)
+                            Text("Account Session", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = AppTextColor)
                         }
                         Spacer(modifier = Modifier.height(16.dp))
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+
+                        Button(
+                            onClick = {
+                                playTapFeedback(view)
+                                AppSettings.clearSession()
+                                Toast.makeText(view.context, "Logged out successfully", Toast.LENGTH_SHORT).show()
+                                onLogout()
+                            },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Column {
-                                Text("Sound Effects", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = AppTextColor)
-                                Text("Play sounds for actions", fontSize = 12.sp, color = Color.Gray)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.PowerSettingsNew, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Log Out", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
-                            Switch(
-                                checked = soundEffects,
-                                onCheckedChange = {
-                                    soundEffects = it
-                                    AppSettings.saveSoundEffects(it)
-                                    playTapFeedback(view)
-                                },
-                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = AccentColor)
-                            )
                         }
                     }
                 }

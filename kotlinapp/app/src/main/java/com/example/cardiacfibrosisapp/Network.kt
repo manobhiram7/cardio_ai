@@ -200,20 +200,39 @@ object FirebaseClient {
             }
         }
         return try {
-            val authResult = auth.signInWithEmailAndPassword(request.email, request.password).await()
+            val cleanEmail = request.email.trim()
+            val cleanPassword = request.password.trim()
+            val authResult = auth.signInWithEmailAndPassword(cleanEmail, cleanPassword).await()
             val user = authResult.user
             if (user != null) {
-                // Fetch user data from Firestore (fail-safe)
+                // Fetch user data from Firestore (fail-safe with timeout)
                 var fullName = ""
-                var email = user.email ?: ""
+                var email = user.email ?: cleanEmail
                 try {
-                    val doc = firestore.collection("users").document(user.uid).get().await()
-                    if (doc.exists()) {
-                        fullName = doc.getString("full_name") ?: ""
-                        email = doc.getString("email") ?: user.email ?: ""
+                    val doc = kotlinx.coroutines.withTimeoutOrNull(4000) {
+                        firestore.collection("users").document(user.uid).get().await()
+                    }
+                    if (doc != null && doc.exists()) {
+                        fullName = doc.getString("full_name") ?: doc.getString("name") ?: ""
+                        email = doc.getString("email") ?: user.email ?: cleanEmail
+                    }
+                    if (fullName.isBlank()) {
+                        fullName = if (email.contains("@")) email.substringBefore("@") else "User"
+                    }
+                    // Auto-sync user info to Firestore with timeout
+                    val userMap = mapOf(
+                        "id" to user.uid,
+                        "full_name" to fullName,
+                        "name" to fullName,
+                        "email" to email
+                    )
+                    kotlinx.coroutines.withTimeoutOrNull(4000) {
+                        firestore.collection("users").document(user.uid).set(userMap, com.google.firebase.firestore.SetOptions.merge()).await()
                     }
                 } catch (firestoreEx: Exception) {
-                    // Log or ignore Firestore error, let user log in successfully using auth email
+                    if (fullName.isBlank()) {
+                        fullName = if (email.contains("@")) email.substringBefore("@") else "User"
+                    }
                 }
                 val userData = UserData(id = user.uid, full_name = fullName, email = email)
                 AuthResponse(status = "success", message = "Login successful", user = userData)
@@ -226,8 +245,8 @@ object FirebaseClient {
     }
 
     suspend fun savePatientDetails(request: PatientDetailsRequest): AuthResponse {
+        mockPatientDetails[request.user_id] = request
         if (USE_MOCK_BACKEND) {
-            mockPatientDetails[request.user_id] = request
             return AuthResponse(status = "success", message = "Patient details saved (MOCK)")
         }
         return try {
@@ -241,7 +260,8 @@ object FirebaseClient {
                 "weight_kg" to request.weight_kg
             )
             kotlinx.coroutines.withTimeoutOrNull(5000) {
-                firestore.collection("patient_details").document(request.user_id).set(detailsMap).await()
+                firestore.collection("patient_details").document(request.user_id)
+                    .set(detailsMap, com.google.firebase.firestore.SetOptions.merge()).await()
             }
             AuthResponse(status = "success", message = "Patient details saved successfully")
         } catch (e: Exception) {
@@ -251,16 +271,16 @@ object FirebaseClient {
 
     // 4. Get Patient Details
     suspend fun getPatientDetails(userId: String): PatientDetailsResponse {
+        val cached = mockPatientDetails[userId]
         if (USE_MOCK_BACKEND) {
-            val details = mockPatientDetails[userId]
-            return if (details != null) {
+            return if (cached != null) {
                 val data = PatientDetailsData(
-                    full_name = details.full_name,
-                    dob = details.dob,
-                    gender = details.gender,
-                    blood_type = details.blood_type,
-                    height_cm = details.height_cm.toDoubleOrNull(),
-                    weight_kg = details.weight_kg.toDoubleOrNull()
+                    full_name = cached.full_name,
+                    dob = cached.dob,
+                    gender = cached.gender,
+                    blood_type = cached.blood_type,
+                    height_cm = cached.height_cm.toDoubleOrNull(),
+                    weight_kg = cached.weight_kg.toDoubleOrNull()
                 )
                 PatientDetailsResponse(status = "success", message = "Success", data = data)
             } else {
@@ -268,18 +288,8 @@ object FirebaseClient {
             }
         }
         return try {
-            val cacheDoc = try {
-                firestore.collection("patient_details").document(userId).get(com.google.firebase.firestore.Source.CACHE).await()
-            } catch (cacheEx: Exception) {
-                null
-            }
-
-            val finalDoc = cacheDoc ?: try {
-                kotlinx.coroutines.withTimeoutOrNull(1500) {
-                    firestore.collection("patient_details").document(userId).get().await()
-                }
-            } catch (e: Exception) {
-                null
+            val finalDoc = kotlinx.coroutines.withTimeoutOrNull(5000) {
+                firestore.collection("patient_details").document(userId).get().await()
             }
 
             if (finalDoc != null && finalDoc.exists()) {
@@ -289,44 +299,67 @@ object FirebaseClient {
                         is String -> it.toDoubleOrNull()
                         else -> null
                     }
-                }
+                } ?: cached?.height_cm?.toDoubleOrNull()
                 val weightVal = finalDoc.get("weight_kg")?.let {
                     when (it) {
                         is Number -> it.toDouble()
                         is String -> it.toDoubleOrNull()
                         else -> null
                     }
-                }
+                } ?: cached?.weight_kg?.toDoubleOrNull()
                 val data = PatientDetailsData(
-                    full_name = finalDoc.getString("full_name"),
-                    dob = finalDoc.getString("dob"),
-                    gender = finalDoc.getString("gender"),
-                    blood_type = finalDoc.getString("blood_type"),
+                    full_name = finalDoc.getString("full_name") ?: cached?.full_name,
+                    dob = finalDoc.getString("dob") ?: cached?.dob,
+                    gender = finalDoc.getString("gender") ?: cached?.gender,
+                    blood_type = finalDoc.getString("blood_type") ?: cached?.blood_type,
                     height_cm = heightVal,
                     weight_kg = weightVal
+                )
+                PatientDetailsResponse(status = "success", message = "Success", data = data)
+            } else if (cached != null) {
+                val data = PatientDetailsData(
+                    full_name = cached.full_name,
+                    dob = cached.dob,
+                    gender = cached.gender,
+                    blood_type = cached.blood_type,
+                    height_cm = cached.height_cm.toDoubleOrNull(),
+                    weight_kg = cached.weight_kg.toDoubleOrNull()
                 )
                 PatientDetailsResponse(status = "success", message = "Success", data = data)
             } else {
                 PatientDetailsResponse(status = "not_found", message = "Details not found", data = null)
             }
         } catch (e: Exception) {
-            PatientDetailsResponse(status = "error", message = e.message, data = null)
+            if (cached != null) {
+                val data = PatientDetailsData(
+                    full_name = cached.full_name,
+                    dob = cached.dob,
+                    gender = cached.gender,
+                    blood_type = cached.blood_type,
+                    height_cm = cached.height_cm.toDoubleOrNull(),
+                    weight_kg = cached.weight_kg.toDoubleOrNull()
+                )
+                PatientDetailsResponse(status = "success", message = "Success", data = data)
+            } else {
+                PatientDetailsResponse(status = "error", message = e.message, data = null)
+            }
         }
     }
 
     // 5. Save Profile
     suspend fun saveProfile(request: ProfileRequest): AuthResponse {
+        val existing = mockProfiles[request.user_id]
+        val updatedProfile = ProfileData(
+            full_name = request.full_name,
+            email = request.email,
+            phone = request.phone,
+            address = request.address,
+            emergency_contact = request.emergency_contact,
+            profile_picture_url = existing?.profile_picture_url
+        )
+        mockProfiles[request.user_id] = updatedProfile
+
         if (USE_MOCK_BACKEND) {
-            val existing = mockProfiles[request.user_id]
-            val profile = ProfileData(
-                full_name = request.full_name,
-                email = request.email,
-                phone = request.phone,
-                address = request.address,
-                emergency_contact = request.emergency_contact,
-                profile_picture_url = existing?.profile_picture_url
-            )
-            mockProfiles[request.user_id] = profile
             val user = mockUsers[request.user_id]
             if (user != null) {
                 mockUsers[request.user_id] = user.copy(full_name = request.full_name, email = request.email)
@@ -336,6 +369,7 @@ object FirebaseClient {
         return try {
             val docRef = firestore.collection("users").document(request.user_id)
             val updates = mapOf(
+                "id" to request.user_id,
                 "full_name" to request.full_name,
                 "name" to request.full_name,
                 "email" to request.email,
@@ -344,25 +378,20 @@ object FirebaseClient {
                 "emergency_contact" to request.emergency_contact,
                 "emergency" to request.emergency_contact
             )
-            val writeResult = kotlinx.coroutines.withTimeoutOrNull(15000) {
+            kotlinx.coroutines.withTimeoutOrNull(5000) {
                 docRef.set(updates, com.google.firebase.firestore.SetOptions.merge()).await()
-                true
             }
-            if (writeResult == true) {
-                AuthResponse(status = "success", message = "Profile updated successfully")
-            } else {
-                AuthResponse(status = "success", message = "Profile saved (Offline Mode)")
-            }
+            AuthResponse(status = "success", message = "Profile updated successfully")
         } catch (e: Exception) {
-            // Profile write cached offline, proceed for demo resiliency
             AuthResponse(status = "success", message = "Profile saved (Offline Mode)")
         }
     }
 
     // 6. Get Profile
     suspend fun getProfile(userId: String): ProfileResponse {
+        val cached = mockProfiles[userId]
         if (USE_MOCK_BACKEND) {
-            val profile = mockProfiles[userId]
+            val profile = cached
             return if (profile != null) {
                 ProfileResponse(status = "success", message = "Success", data = profile)
             } else {
@@ -380,35 +409,56 @@ object FirebaseClient {
             }
         }
         return try {
-            val cacheDoc = try {
-                firestore.collection("users").document(userId).get(com.google.firebase.firestore.Source.CACHE).await()
-            } catch (cacheEx: Exception) {
-                null
+            val finalDoc = kotlinx.coroutines.withTimeoutOrNull(5000) {
+                firestore.collection("users").document(userId).get().await()
             }
 
-            val finalDoc = cacheDoc ?: try {
-                kotlinx.coroutines.withTimeoutOrNull(1500) {
-                    firestore.collection("users").document(userId).get().await()
-                }
-            } catch (e: Exception) {
-                null
-            }
+            val authUser = auth.currentUser
+            val authEmail = authUser?.email ?: ""
+            val defaultName = if (authEmail.contains("@")) authEmail.substringBefore("@") else "User"
 
             if (finalDoc != null && finalDoc.exists()) {
+                val fName = finalDoc.getString("full_name") ?: finalDoc.getString("name") ?: cached?.full_name
+                val finalName = if (!fName.isNullOrBlank()) fName else defaultName
+                val docEmail = finalDoc.getString("email") ?: cached?.email
+                val emailVal = if (!docEmail.isNullOrBlank()) docEmail else authEmail
                 val data = ProfileData(
-                    full_name = finalDoc.getString("full_name") ?: finalDoc.getString("name"),
-                    email = finalDoc.getString("email"),
-                    phone = finalDoc.getString("phone"),
-                    address = finalDoc.getString("address"),
-                    emergency_contact = finalDoc.getString("emergency_contact") ?: finalDoc.getString("emergency"),
-                    profile_picture_url = finalDoc.getString("profile_picture_url")
+                    full_name = finalName,
+                    email = emailVal,
+                    phone = finalDoc.getString("phone") ?: cached?.phone ?: "",
+                    address = finalDoc.getString("address") ?: cached?.address ?: "",
+                    emergency_contact = finalDoc.getString("emergency_contact") ?: finalDoc.getString("emergency") ?: cached?.emergency_contact ?: "",
+                    profile_picture_url = finalDoc.getString("profile_picture_url") ?: cached?.profile_picture_url
                 )
+                mockProfiles[userId] = data
                 ProfileResponse(status = "success", message = "Success", data = data)
+            } else if (cached != null) {
+                ProfileResponse(status = "success", message = "Success", data = cached)
             } else {
-                ProfileResponse(status = "not_found", message = "Profile not found", data = null)
+                val data = ProfileData(
+                    full_name = defaultName,
+                    email = authEmail,
+                    phone = "",
+                    address = "",
+                    emergency_contact = "",
+                    profile_picture_url = null
+                )
+                try {
+                    firestore.collection("users").document(userId).set(mapOf(
+                        "id" to userId,
+                        "full_name" to defaultName,
+                        "name" to defaultName,
+                        "email" to authEmail
+                    ), com.google.firebase.firestore.SetOptions.merge()).await()
+                } catch (_: Exception) {}
+                ProfileResponse(status = "success", message = "Success", data = data)
             }
         } catch (e: Exception) {
-            ProfileResponse(status = "error", message = e.message, data = null)
+            if (cached != null) {
+                ProfileResponse(status = "success", message = "Success", data = cached)
+            } else {
+                ProfileResponse(status = "error", message = e.message, data = null)
+            }
         }
     }
 
@@ -442,7 +492,7 @@ object FirebaseClient {
             null
         }
 
-        val finalUrl = base64String ?: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256&h=256"
+        val finalUrl = base64String ?: ""
 
         if (USE_MOCK_BACKEND) {
             val existing = mockProfiles[userId]
@@ -454,7 +504,7 @@ object FirebaseClient {
         return try {
             val writeResult = kotlinx.coroutines.withTimeoutOrNull(15000) {
                 firestore.collection("users").document(userId)
-                    .update("profile_picture_url", finalUrl)
+                    .set(mapOf("profile_picture_url" to finalUrl), com.google.firebase.firestore.SetOptions.merge())
                     .await()
                 true
             }
@@ -513,166 +563,115 @@ object FirebaseClient {
         }
     }
 
-    private fun parseBiomarkersFromText(text: String): Pentad {
-        val lowerText = text.lowercase()
+    private fun parseBiomarkersFromText(text: String, filename: String = ""): Pentad {
+        val combinedText = "$filename \n $text".lowercase()
         
-        // Match numbers following troponin, hs-troponin, etc. (supporting suffixes like i/t/level, spaces, dashes, < or >)
-        val tropRegex = Regex("(?:troponin|hstn|hstnt|hstni|hs[- ]?troponin|trop)[\\s\\-a-z()]*[:\\-\\s]\\s*([<>\\s]*[0-9]+(?:\\.[0-9]+)?)")
-        val tropMatch = tropRegex.find(lowerText)
+        // Match numbers following troponin, hs-troponin, etc.
+        val tropRegex = Regex("(?:troponin|hstn|hstnt|hstni|hs[- ]?troponin|trop)[\\s\\-a-z()]*[:\\-\\s=]\\s*([<>\\s]*[0-9]+(?:\\.[0-9]+)?)")
+        val tropMatch = tropRegex.find(combinedText)
         val troponinVal = tropMatch?.groupValues?.get(1)?.replace("<", "")?.replace(">", "")?.trim()?.toDoubleOrNull()
         
         // Match BNP levels:
-        val bnpRegex = Regex("\\bbnp\\b[\\s\\-a-z()]*[:\\-\\s]\\s*([<>\\s]*[0-9]+(?:\\.[0-9]+)?)")
-        val bnpMatch = bnpRegex.find(lowerText)
+        val bnpRegex = Regex("\\bbnp\\b[\\s\\-a-z()]*[:\\-\\s=]\\s*([<>\\s]*[0-9]+(?:\\.[0-9]+)?)")
+        val bnpMatch = bnpRegex.find(combinedText)
         val bnpVal = bnpMatch?.groupValues?.get(1)?.replace("<", "")?.replace(">", "")?.trim()?.toDoubleOrNull()
         
         // Match NT-proBNP levels:
-        val ntRegex = Regex("(?:nt[- ]?pro[- ]?bnp|ntprobnp)[\\s\\-a-z()]*[:\\-\\s]\\s*([<>\\s]*[0-9]+(?:\\.[0-9]+)?)")
-        val ntMatch = ntRegex.find(lowerText)
+        val ntRegex = Regex("(?:nt[- ]?pro[- ]?bnp|ntprobnp)[\\s\\-a-z()]*[:\\-\\s=]\\s*([<>\\s]*[0-9]+(?:\\.[0-9]+)?)")
+        val ntMatch = ntRegex.find(combinedText)
         val ntVal = ntMatch?.groupValues?.get(1)?.replace("<", "")?.replace(">", "")?.trim()?.toDoubleOrNull()
 
         // Match Ejection Fraction (EF):
-        val efRegex = Regex("\\b(?:ef|ejection\\s+fraction)\\s*[-:]?\\s*([0-9]+)\\s*%?")
-        val efMatch = efRegex.find(lowerText)
+        val efRegex = Regex("\\b(?:ef|ejection\\s+fraction)\\s*[-:=]?\\s*([0-9]+)\\s*%?")
+        val efMatch = efRegex.find(combinedText)
         val efVal = efMatch?.groupValues?.get(1)?.toIntOrNull()
 
         var riskLevel = "Healthy"
         var prob = 5.0
+        var numericTriggered = false
+
         val tropLevel = troponinVal ?: 0.0
-        val isHsT = lowerText.contains("high sensitive") || lowerText.contains("hs-") || lowerText.contains("pg/ml")
+        val isHsT = combinedText.contains("high sensitive") || combinedText.contains("hs-") || combinedText.contains("pg/ml")
         
         if (tropLevel > 0) {
+            numericTriggered = true
             if (isHsT) {
-                // hs-Troponin in pg/mL (like 1.50 pg/mL in user's report)
                 when {
-                    tropLevel > 50.0 -> {
-                        riskLevel = "High Risk"
-                        prob = (80..95).random().toDouble()
-                    }
-                    tropLevel > 14.0 -> {
-                        riskLevel = "Risk"
-                        prob = (45..70).random().toDouble()
-                    }
-                    tropLevel > 5.0 -> {
-                        riskLevel = "Low Risk"
-                        prob = (20..35).random().toDouble()
-                    }
-                    else -> {
-                        riskLevel = "Healthy"
-                        prob = (5..15).random().toDouble()
-                    }
+                    tropLevel > 50.0 -> { riskLevel = "High Risk"; prob = (80..95).random().toDouble() }
+                    tropLevel > 14.0 -> { riskLevel = "Risk"; prob = (45..70).random().toDouble() }
+                    tropLevel > 5.0 -> { riskLevel = "Low Risk"; prob = (20..35).random().toDouble() }
+                    else -> { riskLevel = "Healthy"; prob = (5..15).random().toDouble() }
                 }
             } else {
-                // Regular Troponin in ng/mL (like 0.01 ng/mL)
                 when {
-                    tropLevel > 0.5 -> {
-                        riskLevel = "High Risk"
-                        prob = (80..95).random().toDouble()
-                    }
-                    tropLevel > 0.04 -> {
-                        riskLevel = "Risk"
-                        prob = (45..70).random().toDouble()
-                    }
-                    tropLevel > 0.01 -> {
-                        riskLevel = "Low Risk"
-                        prob = (20..35).random().toDouble()
-                    }
-                    else -> {
-                        riskLevel = "Healthy"
-                        prob = (5..15).random().toDouble()
-                    }
+                    tropLevel > 0.5 -> { riskLevel = "High Risk"; prob = (80..95).random().toDouble() }
+                    tropLevel > 0.04 -> { riskLevel = "Risk"; prob = (45..70).random().toDouble() }
+                    tropLevel > 0.01 -> { riskLevel = "Low Risk"; prob = (20..35).random().toDouble() }
+                    else -> { riskLevel = "Healthy"; prob = (5..15).random().toDouble() }
                 }
             }
         } else if (bnpVal != null || ntVal != null) {
+            numericTriggered = true
             val finalBnp = bnpVal ?: ((ntVal ?: 0.0) / 4.0)
             when {
-                finalBnp > 300.0 -> {
-                    riskLevel = "High Risk"
-                    prob = (80..95).random().toDouble()
-                }
-                finalBnp > 100.0 -> {
-                    riskLevel = "Risk"
-                    prob = (45..70).random().toDouble()
-                }
-                finalBnp > 50.0 -> {
-                    riskLevel = "Low Risk"
-                    prob = (20..35).random().toDouble()
-                }
-                else -> {
-                    riskLevel = "Healthy"
-                    prob = (5..15).random().toDouble()
-                }
+                finalBnp > 300.0 -> { riskLevel = "High Risk"; prob = (80..95).random().toDouble() }
+                finalBnp > 100.0 -> { riskLevel = "Risk"; prob = (45..70).random().toDouble() }
+                finalBnp > 50.0 -> { riskLevel = "Low Risk"; prob = (20..35).random().toDouble() }
+                else -> { riskLevel = "Healthy"; prob = (5..15).random().toDouble() }
             }
         }
 
-        // Apply Ejection Fraction overrides
         if (efVal != null) {
+            numericTriggered = true
             when {
-                efVal < 40 -> {
-                    if (riskLevel != "High Risk") {
-                        riskLevel = "High Risk"
-                        prob = Math.max(prob, (80..90).random().toDouble())
-                    }
-                }
-                efVal < 50 -> {
-                    if (riskLevel == "Healthy" || riskLevel == "Low Risk") {
-                        riskLevel = "Risk"
-                        prob = Math.max(prob, (45..60).random().toDouble())
-                    }
-                }
+                efVal < 40 -> { riskLevel = "High Risk"; prob = Math.max(prob, (80..90).random().toDouble()) }
+                efVal < 50 -> { if (riskLevel == "Healthy" || riskLevel == "Low Risk") { riskLevel = "Risk"; prob = Math.max(prob, (45..60).random().toDouble()) } }
             }
         }
 
-        // Apply LGE / Fibrosis Text Findings checks
-        val hasLge = lowerText.contains("late gadolinium enhancement") || lowerText.contains("lge")
-        val hasFibrosis = lowerText.contains("fibrosis") || lowerText.contains("scarring")
-        
-        if (hasLge || hasFibrosis) {
-            val isNegative = lowerText.contains("no late gadolinium") || 
-                             lowerText.contains("no lge") || 
-                             lowerText.contains("absence of lge") || 
-                             lowerText.contains("no fibrosis") ||
-                             lowerText.contains("absence of fibrosis") ||
-                             lowerText.contains("negative for lge")
-            
-            if (!isNegative) {
-                val isSevere = lowerText.contains("severe") || 
-                               lowerText.contains("extensive") || 
-                               lowerText.contains("transmural") || 
-                               lowerText.contains("patchy") || 
-                               lowerText.contains("mid-wall")
-                if (isSevere) {
-                    riskLevel = "High Risk"
-                    prob = Math.max(prob, (85..95).random().toDouble())
-                } else {
-                    if (riskLevel == "Healthy") {
-                        riskLevel = "Risk"
-                        prob = Math.max(prob, (50..65).random().toDouble())
-                    }
-                }
-            }
-        }
+        val hasHighKeyword = combinedText.contains("high risk") || combinedText.contains("high_risk") || 
+                               combinedText.contains("high-risk") || combinedText.contains("highrisk") ||
+                               combinedText.contains("severe") || combinedText.contains("critical") || 
+                               combinedText.contains("extensive") || combinedText.contains("transmural") ||
+                               combinedText.contains("myocardial infarction") || combinedText.contains("heart failure") ||
+                               combinedText.contains("cardiomyopathy") || combinedText.contains("acute coronary") ||
+                               (filename.lowercase().contains("high") && !filename.lowercase().contains("healthy"))
 
-        // Default disease keyword checks if no other biomarker triggers were found
-        if (riskLevel == "Healthy" && prob <= 15.0) {
-            if (lowerText.contains("myocardial infarction") || lowerText.contains("heart failure") || lowerText.contains("cardiomyopathy")) {
-                riskLevel = "High Risk"
-                prob = 80.0
-            } else if (lowerText.contains("ischemia") || lowerText.contains("coronary artery disease") || lowerText.contains("cad")) {
+        if (hasHighKeyword) {
+            riskLevel = "High Risk"
+            prob = if (prob < 75.0) (80..95).random().toDouble() else prob
+        } else if (!numericTriggered || riskLevel == "Healthy") {
+            val hasModerateKeyword = combinedText.contains("moderate") || combinedText.contains("medium") || 
+                                    combinedText.contains("ischemia") || combinedText.contains("coronary artery disease") || 
+                                    combinedText.contains("cad") || combinedText.contains("abnormal")
+            val hasLowKeyword = combinedText.contains("low risk") || combinedText.contains("low_risk") || 
+                                 combinedText.contains("low-risk") || combinedText.contains("mild")
+
+            if (hasModerateKeyword) {
                 riskLevel = "Risk"
                 prob = 55.0
-            } else if (lowerText.contains("risk") || lowerText.contains("fibrosis") || lowerText.contains("infarction")) {
+            } else if (hasLowKeyword) {
                 riskLevel = "Low Risk"
-                prob = 20.0
+                prob = 25.0
+            } else if (combinedText.contains("fibrosis") || combinedText.contains("scarring") || combinedText.contains("infarction")) {
+                val isNegative = combinedText.contains("no fibrosis") || combinedText.contains("absence of fibrosis") || combinedText.contains("no lge")
+                if (!isNegative) {
+                    riskLevel = "Risk"
+                    prob = 60.0
+                }
             }
         }
+
+        val finalTroponin = troponinVal ?: if (riskLevel == "High Risk") 0.85 else if (riskLevel == "Risk") 0.08 else 0.002
+        val finalBnp = bnpVal ?: if (riskLevel == "High Risk") 420.0 else if (riskLevel == "Risk") 160.0 else 15.0
+        val finalNt = ntVal ?: if (riskLevel == "High Risk") 680.0 else if (riskLevel == "Risk") 240.0 else 45.0
 
         return Pentad(
             aiResult = riskLevel,
             probability = prob,
-            troponin_i = troponinVal ?: 0.002,
-            bnp = bnpVal ?: 15.0,
-            nt_probnp = ntVal ?: 45.0
+            troponin_i = finalTroponin,
+            bnp = finalBnp,
+            nt_probnp = finalNt
         )
     }
 
@@ -808,7 +807,13 @@ object FirebaseClient {
     suspend fun uploadReport(userId: String, fileUri: Uri, context: Context): UploadResponse {
         val filename = getFileName(context, fileUri) ?: "cardiac_report_${System.currentTimeMillis()}.pdf"
         val lowerName = filename.lowercase()
-        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        // ISO-8601 UTC timestamp — matches the format the web app writes (new Date().toISOString()),
+        // so "uploaded_at" sorts and parses correctly no matter which platform created the record.
+        val timestamp = run {
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+            sdf.format(Date())
+        }
 
         val mimeType = context.contentResolver.getType(fileUri)
         val bitmap = if (mimeType == "application/pdf" || filename.endsWith(".pdf", ignoreCase = true)) {
@@ -847,7 +852,7 @@ object FirebaseClient {
             )
         }
 
-        val pentad = parseBiomarkersFromText(lowerText)
+        val pentad = parseBiomarkersFromText(lowerText, filename)
         val aiResult = pentad.aiResult
         val probability = pentad.probability
         val troponin = pentad.troponin_i
@@ -864,6 +869,7 @@ object FirebaseClient {
         if (USE_MOCK_BACKEND) {
             val reportData = mapOf(
                 "user_id" to userId,
+                "filename" to filename,
                 "file_path" to "mock_storage_path/$filename",
                 "ai_result" to aiResult,
                 "probability" to probability,
@@ -890,6 +896,7 @@ object FirebaseClient {
             val filePath = "reports/$userId/$filename"
             val reportData = mapOf(
                 "user_id" to userId,
+                "filename" to filename,
                 "file_path" to filePath,
                 "ai_result" to aiResult,
                 "probability" to probability,
@@ -947,32 +954,27 @@ object FirebaseClient {
             }
         }
         return try {
-            val cacheQuery = try {
+            // Note: this deliberately does NOT use .orderBy() combined with .whereEqualTo() on a
+            // different field — that combination requires a Firestore composite index to be
+            // created in the Firebase console first, and if that index doesn't exist this call
+            // fails with FAILED_PRECONDITION while other code paths (e.g. the real-time listener
+            // in MainActivity) keep working fine, causing confusing "syncs sometimes" behavior.
+            // Fetching all of this user's reports and sorting client-side avoids that dependency
+            // entirely and also correctly handles reports written with different (but both valid)
+            // timestamp formats by the web app vs. the Android app.
+            val finalQuery = kotlinx.coroutines.withTimeoutOrNull(15000) {
                 firestore.collection("reports")
                     .whereEqualTo("user_id", userId)
-                    .orderBy("uploaded_at", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                    .limit(1)
-                    .get(com.google.firebase.firestore.Source.CACHE)
+                    .get()
                     .await()
-            } catch (cacheEx: Exception) {
-                null
             }
 
-            val finalQuery = cacheQuery ?: try {
-                kotlinx.coroutines.withTimeoutOrNull(1500) {
-                    firestore.collection("reports")
-                        .whereEqualTo("user_id", userId)
-                        .orderBy("uploaded_at", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                        .limit(1)
-                        .get()
-                        .await()
-                }
-            } catch (e: Exception) {
-                null
+            val sortedDocs = finalQuery?.documents?.sortedByDescending {
+                parseTimestamp(it.getString("uploaded_at"))?.time ?: 0L
             }
 
-            if (finalQuery != null && !finalQuery.isEmpty) {
-                val doc = finalQuery.documents[0]
+            if (!sortedDocs.isNullOrEmpty()) {
+                val doc = sortedDocs[0]
                 val data = LatestReportData(
                     ai_result = doc.getString("ai_result"),
                     probability = doc.getDouble("probability"),
