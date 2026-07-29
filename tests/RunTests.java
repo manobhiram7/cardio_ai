@@ -606,6 +606,9 @@ public class RunTests {
         }
         try {
             Files.write(reportsDir.resolve(suiteName + "-report.csv"), csv.toString().getBytes());
+            Files.write(reportsDir.resolve(suiteName + "_test_cases.csv"), csv.toString().getBytes());
+            Path rootDest = Paths.get("").toAbsolutePath().resolve(suiteName + "_test_cases.csv");
+            Files.write(rootDest, csv.toString().getBytes());
         } catch (IOException e) {
             System.err.println("Failed to write suite CSV report: " + e.getMessage());
         }
@@ -1126,6 +1129,11 @@ public class RunTests {
         }
         try {
             Files.write(reportsDir.resolve("report.csv"), csv.toString().getBytes());
+            Files.write(reportsDir.resolve("cardio_ai_master_test_cases.csv"), csv.toString().getBytes());
+            Path rootDest = Paths.get("").toAbsolutePath().resolve("cardio_ai_test_cases.csv");
+            Files.write(rootDest, csv.toString().getBytes());
+            Path rootDest2 = Paths.get("").toAbsolutePath().resolve("cardio_ai_master_test_cases.csv");
+            Files.write(rootDest2, csv.toString().getBytes());
             System.out.println("Unified CSV Report (Excel) successfully created: " + reportsDir.resolve("report.csv").toString());
         } catch (IOException e) {
             System.err.println("Failed to write CSV report: " + e.getMessage());

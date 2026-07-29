@@ -23,11 +23,12 @@ jobs:
       - name: Run Website Tests
         run: java tests/RunTests.java selenium
 
-      - name: Upload Selenium Excel CSV & JSON Reports
+      - name: Upload Selenium Excel Test Cases Sheet
         uses: actions/upload-artifact@v4
         with:
-          name: selenium-excel-report
+          name: selenium-excel-test-cases-sheet
           path: |
+            tests/reports/selenium_test_cases.csv
             tests/reports/selenium-report.csv
             tests/reports/selenium-report.json
 
@@ -47,11 +48,12 @@ jobs:
       - name: Run Android Appium Tests
         run: java tests/RunTests.java appium
 
-      - name: Upload Appium Excel CSV & JSON Reports
+      - name: Upload Appium Excel Test Cases Sheet
         uses: actions/upload-artifact@v4
         with:
-          name: appium-excel-report
+          name: appium-excel-test-cases-sheet
           path: |
+            tests/reports/appium_test_cases.csv
             tests/reports/appium-report.csv
             tests/reports/appium-report.json
 
@@ -71,11 +73,12 @@ jobs:
       - name: Run API Unit Tests
         run: java tests/RunTests.java api
 
-      - name: Upload API Excel CSV & JSON Reports
+      - name: Upload API Excel Test Cases Sheet
         uses: actions/upload-artifact@v4
         with:
-          name: api-excel-report
+          name: api-excel-test-cases-sheet
           path: |
+            tests/reports/api_test_cases.csv
             tests/reports/api-report.csv
             tests/reports/api-report.json
 
@@ -95,11 +98,12 @@ jobs:
       - name: Run Input Validation Tests
         run: java tests/RunTests.java validation
 
-      - name: Upload Validation Excel CSV & JSON Reports
+      - name: Upload Validation Excel Test Cases Sheet
         uses: actions/upload-artifact@v4
         with:
-          name: validation-excel-report
+          name: validation-excel-test-cases-sheet
           path: |
+            tests/reports/validation_test_cases.csv
             tests/reports/validation-report.csv
             tests/reports/validation-report.json
 
@@ -119,11 +123,12 @@ jobs:
       - name: Run Deployment Checks
         run: java tests/RunTests.java deployment
 
-      - name: Upload Deployment Excel CSV & JSON Reports
+      - name: Upload Deployment Excel Test Cases Sheet
         uses: actions/upload-artifact@v4
         with:
-          name: deployment-excel-report
+          name: deployment-excel-test-cases-sheet
           path: |
+            tests/reports/deployment_test_cases.csv
             tests/reports/deployment-report.csv
             tests/reports/deployment-report.json
 
@@ -143,11 +148,12 @@ jobs:
       - name: Run Performance Load Tests
         run: java tests/RunTests.java load
 
-      - name: Upload Load Testing Excel CSV & JSON Reports
+      - name: Upload Load Testing Excel Test Cases Sheet
         uses: actions/upload-artifact@v4
         with:
-          name: load-excel-report
+          name: load-excel-test-cases-sheet
           path: |
+            tests/reports/load_test_cases.csv
             tests/reports/load-report.csv
             tests/reports/load-report.json
 
@@ -168,53 +174,60 @@ jobs:
       - name: Create Reports Workspace
         run: mkdir -p tests/reports
 
-      - name: Download Selenium Excel CSV & JSON Reports
+      - name: Download Selenium Reports
         uses: actions/download-artifact@v4
         with:
-          name: selenium-excel-report
+          name: selenium-excel-test-cases-sheet
           path: tests/reports
 
-      - name: Download Appium Excel CSV & JSON Reports
+      - name: Download Appium Reports
         uses: actions/download-artifact@v4
         with:
-          name: appium-excel-report
+          name: appium-excel-test-cases-sheet
           path: tests/reports
 
-      - name: Download API Excel CSV & JSON Reports
+      - name: Download API Reports
         uses: actions/download-artifact@v4
         with:
-          name: api-excel-report
+          name: api-excel-test-cases-sheet
           path: tests/reports
 
-      - name: Download Validation Excel CSV & JSON Reports
+      - name: Download Validation Reports
         uses: actions/download-artifact@v4
         with:
-          name: validation-excel-report
+          name: validation-excel-test-cases-sheet
           path: tests/reports
 
-      - name: Download Deployment Excel CSV & JSON Reports
+      - name: Download Deployment Reports
         uses: actions/download-artifact@v4
         with:
-          name: deployment-excel-report
+          name: deployment-excel-test-cases-sheet
           path: tests/reports
 
-      - name: Download Load Excel CSV & JSON Reports
+      - name: Download Load Reports
         uses: actions/download-artifact@v4
         with:
-          name: load-excel-report
+          name: load-excel-test-cases-sheet
           path: tests/reports
 
       - name: Compile Unified HTML Dashboard
         run: java tests/RunTests.java compile
 
-      - name: Upload CardioAI Master Excel & QA Artifacts
+      - name: Upload All CardioAI Excel Test Cases Sheets & Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cardio-ai-master-excel-qa-reports
+          name: cardio-ai-all-excel-test-cases-sheets
           path: |
             tests/reports/dashboard.html
             tests/reports/report.csv
+            tests/reports/selenium_test_cases.csv
+            tests/reports/appium_test_cases.csv
+            tests/reports/api_test_cases.csv
+            tests/reports/validation_test_cases.csv
+            tests/reports/deployment_test_cases.csv
+            tests/reports/load_test_cases.csv
             cardio_ai_test_cases.csv
+            cardio_ai_master_test_cases.csv
             cardio_ai_apm_report.csv
             cardio_ai_apm_report.pdf
             cardio_ai_app_architecture.pdf
