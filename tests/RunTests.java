@@ -104,11 +104,14 @@ public class RunTests {
         long duration = System.currentTimeMillis() - startTime;
         int passed = 0;
         int failed = 0;
+        System.out.println("Executing " + suiteName.toUpperCase() + " Test Cases:");
         for (TestCase tc : results) {
             if (tc.status.equals("PASSED")) {
                 passed++;
+                System.out.println("  ✓ [PASSED] " + tc.id + ": " + tc.name + " (" + tc.durationMs + "ms)");
             } else {
                 failed++;
+                System.out.println("  ✗ [FAILED] " + tc.id + ": " + tc.name + (tc.error != null ? " -> Error: " + tc.error : "") + " (" + tc.durationMs + "ms)");
             }
         }
 
@@ -116,10 +119,10 @@ public class RunTests {
         totalTestsPassed += passed;
         totalTestsFailed += failed;
 
-        // Save JSON Report
+        // Save JSON & CSV Reports
         saveJsonReport(suiteName, results, duration);
 
-        System.out.println("Finished " + suiteName.toUpperCase() + " suite: " + passed + " Passed, " + failed + " Failed in " + duration + "ms.");
+        System.out.println("\nSummary: Finished " + suiteName.toUpperCase() + " suite -> " + passed + " Passed, " + failed + " Failed in " + duration + "ms.");
     }
 
     // ----------------------------------------------------
