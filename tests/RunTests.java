@@ -585,6 +585,27 @@ public class RunTests {
         } catch (IOException e) {
             System.err.println("Failed to save JSON report: " + e.getMessage());
         }
+
+        saveSuiteCsvReport(suiteName, testCases);
+    }
+
+    private static void saveSuiteCsvReport(String suiteName, List<TestCase> testCases) {
+        StringBuilder csv = new StringBuilder();
+        csv.append("Suite Category,Test ID,Validation Description,Duration (ms),Status,Error Details\n");
+        for (TestCase tc : testCases) {
+            csv.append(escapeCsvField(suiteName)).append(",")
+               .append(escapeCsvField(tc.id)).append(",")
+               .append(escapeCsvField(tc.name)).append(",")
+               .append(tc.durationMs).append(",")
+               .append(escapeCsvField(tc.status)).append(",")
+               .append(escapeCsvField(tc.error == null ? "" : tc.error))
+               .append("\n");
+        }
+        try {
+            Files.write(reportsDir.resolve(suiteName + "-report.csv"), csv.toString().getBytes());
+        } catch (IOException e) {
+            System.err.println("Failed to write suite CSV report: " + e.getMessage());
+        }
     }
 
     private static String escapeJson(String s) {

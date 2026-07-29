@@ -23,11 +23,13 @@ jobs:
       - name: Run Website Tests
         run: java tests/RunTests.java selenium
 
-      - name: Upload Selenium Report
+      - name: Upload Selenium Excel CSV & JSON Reports
         uses: actions/upload-artifact@v4
         with:
-          name: selenium-report
-          path: tests/reports/selenium-report.json
+          name: selenium-excel-report
+          path: |
+            tests/reports/selenium-report.csv
+            tests/reports/selenium-report.json
 
   appium-tests:
     name: Appium - CardioAI Android App Tests (300)
@@ -45,11 +47,13 @@ jobs:
       - name: Run Android Appium Tests
         run: java tests/RunTests.java appium
 
-      - name: Upload Appium Report
+      - name: Upload Appium Excel CSV & JSON Reports
         uses: actions/upload-artifact@v4
         with:
-          name: appium-report
-          path: tests/reports/appium-report.json
+          name: appium-excel-report
+          path: |
+            tests/reports/appium-report.csv
+            tests/reports/appium-report.json
 
   api-tests:
     name: Unit Tests - CardioAI API & Cloud (300)
@@ -67,11 +71,13 @@ jobs:
       - name: Run API Unit Tests
         run: java tests/RunTests.java api
 
-      - name: Upload API Report
+      - name: Upload API Excel CSV & JSON Reports
         uses: actions/upload-artifact@v4
         with:
-          name: api-report
-          path: tests/reports/api-report.json
+          name: api-excel-report
+          path: |
+            tests/reports/api-report.csv
+            tests/reports/api-report.json
 
   validation-tests:
     name: Validation Tests - CardioAI Biomarkers (300)
@@ -89,11 +95,13 @@ jobs:
       - name: Run Input Validation Tests
         run: java tests/RunTests.java validation
 
-      - name: Upload Validation Report
+      - name: Upload Validation Excel CSV & JSON Reports
         uses: actions/upload-artifact@v4
         with:
-          name: validation-report
-          path: tests/reports/validation-report.json
+          name: validation-excel-report
+          path: |
+            tests/reports/validation-report.csv
+            tests/reports/validation-report.json
 
   deployment-status:
     name: Deployment Status - CardioAI Web & Mobile (300)
@@ -111,11 +119,13 @@ jobs:
       - name: Run Deployment Checks
         run: java tests/RunTests.java deployment
 
-      - name: Upload Deployment Report
+      - name: Upload Deployment Excel CSV & JSON Reports
         uses: actions/upload-artifact@v4
         with:
-          name: deployment-report
-          path: tests/reports/deployment-report.json
+          name: deployment-excel-report
+          path: |
+            tests/reports/deployment-report.csv
+            tests/reports/deployment-report.json
 
   load-tests:
     name: Load Testing - CardioAI Realtime Sync (300)
@@ -133,11 +143,13 @@ jobs:
       - name: Run Performance Load Tests
         run: java tests/RunTests.java load
 
-      - name: Upload Load Report
+      - name: Upload Load Testing Excel CSV & JSON Reports
         uses: actions/upload-artifact@v4
         with:
-          name: load-report
-          path: tests/reports/load-report.json
+          name: load-excel-report
+          path: |
+            tests/reports/load-report.csv
+            tests/reports/load-report.json
 
   compile-report:
     name: Compile CardioAI Master Report & Deploy
@@ -156,49 +168,53 @@ jobs:
       - name: Create Reports Workspace
         run: mkdir -p tests/reports
 
-      - name: Download Selenium Report
+      - name: Download Selenium Excel CSV & JSON Reports
         uses: actions/download-artifact@v4
         with:
-          name: selenium-report
+          name: selenium-excel-report
           path: tests/reports
 
-      - name: Download Appium Report
+      - name: Download Appium Excel CSV & JSON Reports
         uses: actions/download-artifact@v4
         with:
-          name: appium-report
+          name: appium-excel-report
           path: tests/reports
 
-      - name: Download Unit Test Report
+      - name: Download API Excel CSV & JSON Reports
         uses: actions/download-artifact@v4
         with:
-          name: api-report
+          name: api-excel-report
           path: tests/reports
 
-      - name: Download Validation Report
+      - name: Download Validation Excel CSV & JSON Reports
         uses: actions/download-artifact@v4
         with:
-          name: validation-report
+          name: validation-excel-report
           path: tests/reports
 
-      - name: Download Deployment Report
+      - name: Download Deployment Excel CSV & JSON Reports
         uses: actions/download-artifact@v4
         with:
-          name: deployment-report
+          name: deployment-excel-report
           path: tests/reports
 
-      - name: Download Load Report
+      - name: Download Load Excel CSV & JSON Reports
         uses: actions/download-artifact@v4
         with:
-          name: load-report
+          name: load-excel-report
           path: tests/reports
 
       - name: Compile Unified HTML Dashboard
         run: java tests/RunTests.java compile
 
-      - name: Upload Master Dashboard & Excel CSV Report
+      - name: Upload CardioAI Master Excel & QA Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: unified-qa-reports
+          name: cardio-ai-master-excel-qa-reports
           path: |
             tests/reports/dashboard.html
             tests/reports/report.csv
+            cardio_ai_test_cases.csv
+            cardio_ai_apm_report.csv
+            cardio_ai_apm_report.pdf
+            cardio_ai_app_architecture.pdf
