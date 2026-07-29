@@ -215,8 +215,8 @@ public class RunTests {
     // 2. APPIUM - ANDROID TESTS (300 cases)
     // ----------------------------------------------------
     private static void runAppiumTests(List<TestCase> results) {
-        String manifestContent = readFileSafe(kotlinDir.resolve("app\\src\\main\\AndroidManifest.xml"));
-        String mainActivityContent = readFileSafe(kotlinDir.resolve("app\\src\\main\\java\\com\\example\\cardiacfibrosisapp\\MainActivity.kt"));
+        String manifestContent = readFileSafe(kotlinDir.resolve("app/src/main/AndroidManifest.xml"));
+        String mainActivityContent = readFileSafe(kotlinDir.resolve("app/src/main/java/com/example/cardiacfibrosisapp/MainActivity.kt"));
         Random rand = new Random();
 
         for (int i = 1; i <= 300; i++) {
@@ -286,7 +286,7 @@ public class RunTests {
     // 3. UNIT TESTS - API (300 cases)
     // ----------------------------------------------------
     private static void runApiTests(List<TestCase> results) {
-        String networkContent = readFileSafe(kotlinDir.resolve("app\\src\\main\\java\\com\\example\\cardiacfibrosisapp\\Network.kt"));
+        String networkContent = readFileSafe(kotlinDir.resolve("app/src/main/java/com/example/cardiacfibrosisapp/Network.kt"));
         Random rand = new Random();
 
         for (int i = 1; i <= 300; i++) {
@@ -462,7 +462,7 @@ public class RunTests {
                     webappDir.resolve("index.html"), webappDir.resolve("app.js"), webappDir.resolve("styles.css"),
                     kotlinDir.resolve("build.gradle.kts"), kotlinDir.resolve("settings.gradle.kts"),
                     kotlinDir.resolve("gradle.properties"), kotlinDir.resolve("gradlew"),
-                    kotlinDir.resolve("gradlew.bat"), kotlinDir.resolve("gradle\\libs.versions.toml")
+                    kotlinDir.resolve("gradlew.bat"), kotlinDir.resolve("gradle/libs.versions.toml")
                 };
                 Path file = files[(i - 1) % files.length];
                 tc.name = "Check if deployment file exists: \"" + file.getFileName().toString() + "\"";
@@ -473,7 +473,7 @@ public class RunTests {
                     tc.error = "Missing critical file for deployment: " + file.toString();
                 }
             } else if (i <= 100) {
-                String gradleContent = readFileSafe(kotlinDir.resolve("app\\build.gradle.kts"));
+                String gradleContent = readFileSafe(kotlinDir.resolve("app/build.gradle.kts"));
                 tc.name = "Deployment SDK Target verification #" + i;
                 if (gradleContent.contains("compileSdk = 35") && gradleContent.contains("targetSdk = 35")) {
                     tc.status = "PASSED";
